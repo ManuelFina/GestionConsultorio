@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="GestionConsultorio.Api/GestionConsultorio.Api.csproj" />
+  <Project Path="GestionConsultorio.Mobile/GestionConsultorio.Mobile.csproj" />
+  <Project Path="GestionConsultorio.Shared/GestionConsultorio.Shared.csproj" />
+</Solution>

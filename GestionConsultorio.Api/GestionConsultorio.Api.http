@@ -1,0 +1,6 @@
+@GestionConsultorio.Api_HostAddress = http://localhost:5186
+
+GET {{GestionConsultorio.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
