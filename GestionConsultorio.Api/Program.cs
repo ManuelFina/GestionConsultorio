@@ -15,12 +15,15 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>)); //CRUDs
+
 builder.Services.AddScoped<IPacienteRepository, PacienteRepository>();
 builder.Services.AddScoped<IMedicoRepository, MedicoRepository>();
 builder.Services.AddScoped<ITurnoRepository, TurnoRepository>();
+builder.Services.AddScoped<IHistorialClinicoRepository, HistorialClinicoRepository>();
 
 builder.Services.AddScoped<ITurnoService, TurnoService>();
+builder.Services.AddScoped<IHistorialClinicoService, HistorialClinicoService>();
 
 var app = builder.Build();
 
