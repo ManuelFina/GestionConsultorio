@@ -6,14 +6,9 @@ namespace GestionConsultorio.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ConsultoriosController : ControllerBase
+public class ConsultoriosController(IRepository<Consultorio> consultorioRepository) : ControllerBase
 {
-    private readonly IRepository<Consultorio> _consultorioRepository;
-
-    public ConsultoriosController(IRepository<Consultorio> consultorioRepository)
-    {
-        _consultorioRepository = consultorioRepository;
-    }
+    private readonly IRepository<Consultorio> _consultorioRepository = consultorioRepository;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Consultorio>>> ObtenerTodos()

@@ -1,6 +1,8 @@
 using GestionConsultorio.Api.Data;
 using GestionConsultorio.Api.Repositories.Implementaciones;
 using GestionConsultorio.Api.Repositories.Interfaces;
+using GestionConsultorio.Api.Services.Interfaces;
+using GestionConsultorio.Api.Services.Implementaciones;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +18,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IPacienteRepository, PacienteRepository>();
 builder.Services.AddScoped<IMedicoRepository, MedicoRepository>();
+builder.Services.AddScoped<ITurnoRepository, TurnoRepository>();
+
+builder.Services.AddScoped<ITurnoService, TurnoService>();
 
 var app = builder.Build();
 
