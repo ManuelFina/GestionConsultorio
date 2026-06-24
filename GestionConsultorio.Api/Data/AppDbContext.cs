@@ -17,4 +17,21 @@ public class AppDbContext : DbContext
     public DbSet<Turno> Turnos { get; set; }
     public DbSet<HistorialClinico> HistorialesClinicos { get; set; }
     public DbSet<Usuario> Usuarios { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<HistorialClinico>()
+            .HasOne(h => h.Paciente)
+            .WithMany()
+            .HasForeignKey(h => h.PacienteId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HistorialClinico>()
+            .HasOne(h => h.Turno)
+            .WithMany()
+            .HasForeignKey(h => h.TurnoId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
 }
