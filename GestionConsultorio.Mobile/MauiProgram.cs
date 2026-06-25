@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using GestionConsultorio.Mobile.Services.Implementaciones;
+using GestionConsultorio.Mobile.Services.Interfaces;
+using GestionConsultorio.Mobile.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace GestionConsultorio.Mobile;
 
@@ -21,6 +24,17 @@ public static class MauiProgram
 		builder.Logging.AddDebug();
 #endif
 
-		return builder.Build();
+        builder.Services.AddScoped(sp => new HttpClient
+        {
+            BaseAddress = new Uri(ApiSettings.BaseUrl)
+        });
+
+        builder.Services.AddScoped<IPacienteService, PacienteService>();
+        builder.Services.AddScoped<IPacienteService, PacienteService>();
+        builder.Services.AddScoped<IEspecialidadService, EspecialidadService>();
+        builder.Services.AddScoped<IConsultorioService, ConsultorioService>();
+        builder.Services.AddScoped<IMedicoService, MedicoService>();
+
+        return builder.Build();
 	}
 }
