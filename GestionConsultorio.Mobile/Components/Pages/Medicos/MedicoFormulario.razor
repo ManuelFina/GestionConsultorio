@@ -1,0 +1,210 @@
+﻿@page "/medicos/nuevo"
+@page "/medicos/editar/{MedicoId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IMedicoService MedicoService
+@inject IEspecialidadService EspecialidadService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información del médico...</p>
+        }
+        else
+        {
+            <EditForm Model="Medico" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Nombre completo</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Medico.NombreCompleto"
+                                   placeholder="Ej: Dra. Laura Gómez" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Matrícula</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Medico.Matricula"
+                                   placeholder="Ej: MP12345" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Especialidad</label>
+                        <InputSelect class="form-control"
+                                     @bind-Value="Medico.EspecialidadId">
+                            <option value="0">Seleccionar especialidad</option>
+
+                            @foreach (var especialidad in Especialidades)
+                            {
+                                <option value="@especialidad.Id">
+                                    @especialidad.Nombre
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Teléfono</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Medico.Telefono"
+                                   placeholder="Ej: 2954555555" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Medico.Email"
+                                   placeholder="Ej: medico@email.com" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar médico")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? MedicoId { get; set; }
+
+    private Medico Medico = new();
+    private List<Especialidad> Especialidades = new();
+
+    private bool Cargando = true;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => MedicoId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar médico" : "Nuevo médico";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá los datos del profesional seleccionado"
+        : "Registrá un nuevo profesional médico";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var especialidadesResponse = await EspecialidadService.ObtenerTodosAsync();
+
+        if (!especialidadesResponse.Exitoso)
+        {
+            MensajeError = especialidadesResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Especialidades = especialidadesResponse.Data ?? new List<Especialidad>();
+
+        if (EsEdicion)
+        {
+            var medicoResponse = await MedicoService.ObtenerPorIdAsync(MedicoId!.Value);
+
+            if (!medicoResponse.Exitoso)
+            {
+                MensajeError = medicoResponse.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            Medico = medicoResponse.Data ?? new Medico();
+        }
+
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (Medico.EspecialidadId == 0)
+        {
+            MensajeError = "Seleccioná una especialidad.";
+            Guardando = false;
+            return;
+        }
+
+        if (EsEdicion)
+        {
+            await ActualizarMedicoAsync();
+        }
+        else
+        {
+            await CrearMedicoAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private async Task CrearMedicoAsync()
+    {
+        var resultado = await MedicoService.CrearAsync(Medico);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/medicos");
+    }
+
+    private async Task ActualizarMedicoAsync()
+    {
+        var resultado = await MedicoService.ActualizarAsync(Medico.Id, Medico);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/medicos");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/medicos");
+    }
+}

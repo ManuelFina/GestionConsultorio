@@ -1,0 +1,289 @@
+﻿@page "/turnos"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject ITurnoService TurnoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Turnos</h2>
+        <p>Gestión de turnos asignados en el consultorio</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoTurno">
+        + Nuevo turno
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="turnos-filters">
+                <div class="search-box">
+                    <input class="form-control"
+                           placeholder="Buscar paciente, médico o motivo..."
+                           @bind="TextoBusqueda"
+                           @bind:event="oninput" />
+                </div>
+
+                <InputDate class="form-control filter-date"
+                           @bind-Value="FechaSeleccionada" />
+
+                <button class="btn btn-outline" @onclick="CargarTurnosPorFechaAsync">
+                    Filtrar fecha
+                </button>
+
+                <button class="btn btn-outline" @onclick="CargarTodosAsync">
+                    Ver todos
+                </button>
+            </div>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando turnos...</p>
+        }
+        else if (!TurnosFiltrados.Any())
+        {
+            <p class="empty-text">No se encontraron turnos.</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha y hora</th>
+                            <th>Paciente</th>
+                            <th>Médico</th>
+                            <th>Consultorio</th>
+                            <th>Motivo</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var turno in TurnosFiltrados)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@turno.Fecha.ToString("dd/MM/yyyy")</strong>
+                                    <div class="table-subtext">
+                                        @turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <strong>@(turno.Paciente?.NombreCompleto ?? "Sin paciente")</strong>
+                                    <div class="table-subtext">
+                                        DNI @(turno.Paciente?.Dni ?? "-")
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <strong>@(turno.Medico?.NombreCompleto ?? "Sin médico")</strong>
+                                    <div class="table-subtext">
+                                        @(turno.Medico?.Especialidad?.Nombre ?? "Sin especialidad")
+                                    </div>
+                                </td>
+
+                                <td>
+                                    @(turno.Consultorio?.Nombre ?? "Sin consultorio")
+                                </td>
+
+                                <td>
+                                    @turno.MotivoConsulta
+                                </td>
+
+                                <td>
+                                    <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                        @turno.Estado
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="actions">
+                                        <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
+                                            Confirmar
+                                        </button>
+
+                                        <button class="action-btn" @onclick="() => AtenderAsync(turno.Id)">
+                                            Atender
+                                        </button>
+
+                                        <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
+                                            Ausente
+                                        </button>
+
+                                        <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
+                                            Editar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
+                                            Cancelar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="() => EliminarAsync(turno.Id)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private DateTime FechaSeleccionada = DateTime.Today;
+
+    private List<Turno> Turnos = new();
+
+    private IEnumerable<Turno> TurnosFiltrados =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Turnos
+            : Turnos.Where(t =>
+                (t.Paciente?.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.Paciente?.Dni.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.Medico?.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                t.MotivoConsulta.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTurnosPorFechaAsync();
+    }
+
+    private async Task CargarTodosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await TurnoService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Turnos = resultado.Data ?? new List<Turno>();
+        Cargando = false;
+    }
+
+    private async Task CargarTurnosPorFechaAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var fecha = DateOnly.FromDateTime(FechaSeleccionada);
+
+        var resultado = await TurnoService.ObtenerPorFechaAsync(fecha);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Turnos = resultado.Data ?? new List<Turno>();
+        Cargando = false;
+    }
+
+    private async Task ConfirmarAsync(int id)
+    {
+        var resultado = await TurnoService.ConfirmarAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno confirmado correctamente.");
+    }
+
+    private async Task AtenderAsync(int id)
+    {
+        var resultado = await TurnoService.AtenderAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno marcado como atendido.");
+    }
+
+    private async Task MarcarAusenteAsync(int id)
+    {
+        var resultado = await TurnoService.MarcarAusenteAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno marcado como ausente.");
+    }
+
+    private async Task CancelarAsync(int id)
+    {
+        var resultado = await TurnoService.CancelarAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno cancelado correctamente.");
+    }
+
+    private async Task EliminarAsync(int id)
+    {
+        var resultado = await TurnoService.EliminarAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno eliminado correctamente.");
+    }
+
+    private async Task ProcesarAccionAsync(GestionConsultorio.Shared.Responses.ApiResponse<bool> resultado, string mensajeExito)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = mensajeExito;
+        await CargarTurnosPorFechaAsync();
+    }
+
+    private void IrNuevoTurno()
+    {
+        Navigation.NavigateTo("/turnos/nuevo");
+    }
+
+    private void EditarTurno(int id)
+    {
+        Navigation.NavigateTo($"/turnos/editar/{id}");
+    }
+
+    private static string ObtenerClaseEstado(string estado)
+    {
+        return estado switch
+        {
+            "Confirmado" => "badge badge-success",
+            "Pendiente" => "badge badge-warning",
+            "Cancelado" => "badge badge-danger",
+            "Atendido" => "badge badge-info",
+            "Ausente" => "badge badge-danger",
+            "Reprogramado" => "badge badge-warning",
+            _ => "badge badge-info"
+        };
+    }
+}

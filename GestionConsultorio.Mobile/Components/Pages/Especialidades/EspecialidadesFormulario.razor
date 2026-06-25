@@ -1,0 +1,160 @@
+﻿@page "/especialidades/nuevo"
+@page "/especialidades/editar/{EspecialidadId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IEspecialidadService EspecialidadService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información de la especialidad...</p>
+        }
+        else
+        {
+            <EditForm Model="Especialidad" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Nombre de la especialidad</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Especialidad.Nombre"
+                                   placeholder="Ej: Cardiología" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar especialidad")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? EspecialidadId { get; set; }
+
+    private Especialidad Especialidad = new();
+
+    private bool Cargando;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => EspecialidadId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar especialidad" : "Nueva especialidad";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá el nombre de la especialidad seleccionada"
+        : "Registrá una nueva especialidad médica";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EsEdicion)
+        {
+            await CargarEspecialidadAsync();
+        }
+    }
+
+    private async Task CargarEspecialidadAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var resultado = await EspecialidadService.ObtenerPorIdAsync(EspecialidadId!.Value);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Especialidad = resultado.Data ?? new Especialidad();
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(Especialidad.Nombre))
+        {
+            MensajeError = "Ingresá el nombre de la especialidad.";
+            Guardando = false;
+            return;
+        }
+
+        if (EsEdicion)
+        {
+            await ActualizarEspecialidadAsync();
+        }
+        else
+        {
+            await CrearEspecialidadAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private async Task CrearEspecialidadAsync()
+    {
+        var resultado = await EspecialidadService.CrearAsync(Especialidad);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/especialidades");
+    }
+
+    private async Task ActualizarEspecialidadAsync()
+    {
+        var resultado = await EspecialidadService.ActualizarAsync(Especialidad.Id, Especialidad);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/especialidades");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/especialidades");
+    }
+}

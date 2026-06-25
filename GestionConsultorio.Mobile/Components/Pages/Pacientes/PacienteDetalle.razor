@@ -1,0 +1,251 @@
+﻿@page "/pacientes/{PacienteId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IPacienteService PacienteService
+@inject ITurnoService TurnoService
+@inject IHistorialClinicoService HistorialClinicoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Detalle del paciente</h2>
+        <p>Información general, turnos e historial clínico</p>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-outline" @onclick="Volver">
+            Volver
+        </button>
+
+        <button class="btn btn-primary" @onclick="EditarPaciente">
+            Editar paciente
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (Cargando)
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="empty-text">Cargando información del paciente...</p>
+        </div>
+    </div>
+}
+else if (Paciente is not null)
+{
+    <div class="patient-detail-grid">
+        <div class="card">
+            <div class="card-body">
+                <div class="patient-profile">
+                    <div class="patient-avatar">
+                        @InicialPaciente
+                    </div>
+
+                    <div>
+                        <h3>@Paciente.NombreCompleto</h3>
+                        <p>DNI @Paciente.Dni</p>
+                    </div>
+                </div>
+
+                <div class="detail-list">
+                    <div class="detail-item">
+                        <span>Fecha de nacimiento</span>
+                        <strong>@Paciente.FechaNacimiento.ToString("dd/MM/yyyy")</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Teléfono</span>
+                        <strong>@MostrarDato(Paciente.Telefono)</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Email</span>
+                        <strong>@MostrarDato(Paciente.Email)</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Dirección</span>
+                        <strong>@MostrarDato(Paciente.Direccion)</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Obra social</span>
+                        <strong>@MostrarDato(Paciente.ObraSocial)</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Número de afiliado</span>
+                        <strong>@MostrarDato(Paciente.NumeroAfiliado)</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="patient-side-column">
+            <div class="card">
+                <div class="card-body">
+                    <div class="section-header">
+                        <div>
+                            <h3>Turnos del paciente</h3>
+                            <p>Últimos turnos registrados</p>
+                        </div>
+                    </div>
+
+                    @if (!Turnos.Any())
+                    {
+                        <p class="empty-text">El paciente no tiene turnos registrados.</p>
+                    }
+                    else
+                    {
+                        @foreach (var turno in Turnos.Take(5))
+                        {
+                            <div class="turno-item">
+                                <div class="turno-item-header">
+                                    <span class="turno-time">
+                                        @turno.Fecha.ToString("dd/MM/yyyy") - @turno.HoraInicio.ToString("HH:mm")
+                                    </span>
+
+                                    <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                        @turno.Estado
+                                    </span>
+                                </div>
+
+                                <div class="turno-detail">
+                                    Médico: @(turno.Medico?.NombreCompleto ?? "Sin médico")
+                                </div>
+
+                                <div class="turno-detail">
+                                    Motivo: @turno.MotivoConsulta
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="section-header">
+                        <div>
+                            <h3>Historial clínico</h3>
+                            <p>Registros médicos del paciente</p>
+                        </div>
+                    </div>
+
+                    @if (!Historiales.Any())
+                    {
+                        <p class="empty-text">No hay registros clínicos para este paciente.</p>
+                    }
+                    else
+                    {
+                        @foreach (var historial in Historiales.Take(5))
+                        {
+                            <div class="clinical-history-item">
+                                <div class="clinical-history-date">
+                                    @historial.FechaRegistro.ToString("dd/MM/yyyy")
+                                </div>
+
+                                <strong>@historial.Diagnostico</strong>
+
+                                <p>@historial.Tratamiento</p>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int PacienteId { get; set; }
+
+    private Paciente? Paciente;
+    private List<Turno> Turnos = new();
+    private List<HistorialClinico> Historiales = new();
+
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+
+    private string InicialPaciente =>
+        string.IsNullOrWhiteSpace(Paciente?.NombreCompleto)
+            ? "P"
+            : Paciente.NombreCompleto.Substring(0, 1).ToUpper();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDetalleAsync();
+    }
+
+    private async Task CargarDetalleAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var pacienteResponse = await PacienteService.ObtenerPorIdAsync(PacienteId);
+
+        if (!pacienteResponse.Exitoso)
+        {
+            MensajeError = pacienteResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Paciente = pacienteResponse.Data;
+
+        var turnosResponse = await TurnoService.ObtenerPorPacienteAsync(PacienteId);
+
+        if (turnosResponse.Exitoso)
+        {
+            Turnos = turnosResponse.Data ?? new List<Turno>();
+        }
+
+        var historialesResponse = await HistorialClinicoService.ObtenerPorPacienteAsync(PacienteId);
+
+        if (historialesResponse.Exitoso)
+        {
+            Historiales = historialesResponse.Data ?? new List<HistorialClinico>();
+        }
+
+        Cargando = false;
+    }
+
+    private static string MostrarDato(string valor)
+    {
+        return string.IsNullOrWhiteSpace(valor) ? "No registrado" : valor;
+    }
+
+    private static string ObtenerClaseEstado(string estado)
+    {
+        return estado switch
+        {
+            "Confirmado" => "badge badge-success",
+            "Pendiente" => "badge badge-warning",
+            "Cancelado" => "badge badge-danger",
+            "Atendido" => "badge badge-info",
+            "Ausente" => "badge badge-danger",
+            "Reprogramado" => "badge badge-warning",
+            _ => "badge badge-info"
+        };
+    }
+
+    private void EditarPaciente()
+    {
+        Navigation.NavigateTo($"/pacientes/editar/{PacienteId}");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/pacientes");
+    }
+}

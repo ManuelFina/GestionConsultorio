@@ -1,0 +1,79 @@
+﻿@page "/login"
+@layout GestionConsultorio.Mobile.Components.Layout.EmptyLayout
+
+@using GestionConsultorio.Shared.DTOs.Auth
+@using GestionConsultorio.Mobile.Services.Interfaces
+
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            🩺
+        </div>
+
+        <h1>Iniciar sesión</h1>
+        <p>Ingresá al sistema de gestión del consultorio médico.</p>
+
+        @if (!string.IsNullOrWhiteSpace(MensajeError))
+        {
+            <div class="alert alert-error">
+                @MensajeError
+            </div>
+        }
+
+        <EditForm Model="LoginDto" OnValidSubmit="IniciarSesion">
+            <DataAnnotationsValidator />
+
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Email</label>
+                <InputText class="form-control"
+                           @bind-Value="LoginDto.Email"
+                           placeholder="admin@consultorio.com" />
+                <ValidationMessage For="@(() => LoginDto.Email)" />
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="form-label">Contraseña</label>
+                <InputText class="form-control"
+                           type="password"
+                           @bind-Value="LoginDto.Password"
+                           placeholder="Ingresá tu contraseña" />
+                <ValidationMessage For="@(() => LoginDto.Password)" />
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" disabled="@Cargando">
+                @(Cargando ? "Ingresando..." : "Ingresar")
+            </button>
+        </EditForm>
+
+        <div class="login-help">
+            <span>Acceso interno para personal autorizado</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginDto LoginDto = new();
+    private string MensajeError = string.Empty;
+    private bool Cargando;
+
+    private async Task IniciarSesion()
+    {
+        MensajeError = string.Empty;
+        Cargando = true;
+
+        var resultado = await AuthService.LoginAsync(LoginDto);
+
+        Cargando = false;
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/dashboard");
+    }
+}

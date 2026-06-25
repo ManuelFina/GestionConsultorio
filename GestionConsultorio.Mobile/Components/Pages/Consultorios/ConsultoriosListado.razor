@@ -1,0 +1,172 @@
+﻿@page "/consultorios"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IConsultorioService ConsultorioService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Consultorios</h2>
+        <p>Gestión de espacios disponibles para atención médica</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoConsultorio">
+        + Nuevo consultorio
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="search-box">
+                <input class="form-control"
+                       placeholder="Buscar consultorio..."
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-outline" @onclick="CargarConsultoriosAsync">
+                Actualizar
+            </button>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando consultorios...</p>
+        }
+        else if (!ConsultoriosFiltrados.Any())
+        {
+            <p class="empty-text">No se encontraron consultorios.</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Consultorio</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var consultorio in ConsultoriosFiltrados)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@consultorio.Nombre</strong>
+                                </td>
+
+                                <td>
+                                    <span class="table-subtext">
+                                        Espacio disponible para asignación de turnos
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge badge-success">Disponible</span>
+                                </td>
+
+                                <td>
+                                    <div class="actions">
+                                        <button class="action-btn" @onclick="() => EditarConsultorio(consultorio.Id)">
+                                            Editar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="() => EliminarConsultorioAsync(consultorio.Id)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private List<Consultorio> Consultorios = new();
+
+    private IEnumerable<Consultorio> ConsultoriosFiltrados =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Consultorios
+            : Consultorios.Where(c =>
+                c.Nombre.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarConsultoriosAsync();
+    }
+
+    private async Task CargarConsultoriosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await ConsultorioService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Consultorios = resultado.Data ?? new List<Consultorio>();
+        Cargando = false;
+    }
+
+    private void IrNuevoConsultorio()
+    {
+        Navigation.NavigateTo("/consultorios/nuevo");
+    }
+
+    private void EditarConsultorio(int id)
+    {
+        Navigation.NavigateTo($"/consultorios/editar/{id}");
+    }
+
+    private async Task EliminarConsultorioAsync(int id)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await ConsultorioService.EliminarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = "Consultorio eliminado correctamente.";
+        await CargarConsultoriosAsync();
+    }
+}

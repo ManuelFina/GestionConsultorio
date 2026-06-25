@@ -1,0 +1,202 @@
+﻿@page "/historiales"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IHistorialClinicoService HistorialClinicoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Historial clínico</h2>
+        <p>Registros médicos asociados a pacientes y turnos atendidos</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoHistorial">
+        + Nuevo registro
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="search-box">
+                <input class="form-control"
+                       placeholder="Buscar por paciente, diagnóstico o tratamiento..."
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-outline" @onclick="CargarHistorialesAsync">
+                Actualizar
+            </button>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando historiales clínicos...</p>
+        }
+        else if (!HistorialesFiltrados.Any())
+        {
+            <p class="empty-text">No se encontraron registros clínicos.</p>
+        }
+        else
+        {
+            <div class="history-list">
+                @foreach (var historial in HistorialesFiltrados)
+                {
+                    <div class="history-card">
+                        <div class="history-card-header">
+                            <div>
+                                <h3>@(historial.Paciente?.NombreCompleto ?? "Paciente sin cargar")</h3>
+                                <p>
+                                    Registro del @historial.FechaRegistro.ToString("dd/MM/yyyy HH:mm")
+                                </p>
+                            </div>
+
+                            <span class="badge badge-info">
+                                Historial clínico
+                            </span>
+                        </div>
+
+                        <div class="history-info-grid">
+                            <div>
+                                <span>Diagnóstico</span>
+                                <strong>@historial.Diagnostico</strong>
+                            </div>
+
+                            <div>
+                                <span>Tratamiento</span>
+                                <strong>@historial.Tratamiento</strong>
+                            </div>
+
+                            <div>
+                                <span>Turno</span>
+                                <strong>
+                                    @if (historial.Turno is not null)
+                                    {
+                                        @($"{historial.Turno.Fecha:dd/MM/yyyy} - {historial.Turno.HoraInicio:HH:mm}")
+                                    }
+                                    else
+                                    {
+                                        @("Sin turno")
+                                    }
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Médico</span>
+                                <strong>
+                                    @(historial.Turno?.Medico?.NombreCompleto ?? "Sin médico")
+                                </strong>
+                            </div>
+                        </div>
+
+                        <div class="history-observations">
+                            <span>Observaciones</span>
+                            <p>@MostrarDato(historial.Observaciones)</p>
+                        </div>
+
+                        <div class="actions history-actions">
+                            <button class="action-btn" @onclick="() => EditarHistorial(historial.Id)">
+                                Editar
+                            </button>
+
+                            <button class="action-btn action-danger" @onclick="() => EliminarHistorialAsync(historial.Id)">
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private List<HistorialClinico> Historiales = new();
+
+    private IEnumerable<HistorialClinico> HistorialesFiltrados =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Historiales
+            : Historiales.Where(h =>
+                (h.Paciente?.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                h.Diagnostico.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                h.Tratamiento.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                h.Observaciones.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarHistorialesAsync();
+    }
+
+    private async Task CargarHistorialesAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await HistorialClinicoService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Historiales = resultado.Data ?? new List<HistorialClinico>();
+        Cargando = false;
+    }
+
+    private void IrNuevoHistorial()
+    {
+        Navigation.NavigateTo("/historiales/nuevo");
+    }
+
+    private void EditarHistorial(int id)
+    {
+        Navigation.NavigateTo($"/historiales/editar/{id}");
+    }
+
+    private async Task EliminarHistorialAsync(int id)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await HistorialClinicoService.EliminarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = "Historial clínico eliminado correctamente.";
+        await CargarHistorialesAsync();
+    }
+
+    private static string MostrarDato(string valor)
+    {
+        return string.IsNullOrWhiteSpace(valor) ? "Sin observaciones registradas." : valor;
+    }
+}

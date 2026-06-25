@@ -1,0 +1,185 @@
+﻿@page "/medicos"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IMedicoService MedicoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Médicos</h2>
+        <p>Gestión de profesionales del consultorio</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoMedico">
+        + Nuevo médico
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="search-box">
+                <input class="form-control"
+                       placeholder="Buscar por nombre, matrícula, email o especialidad..."
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-outline" @onclick="CargarMedicosAsync">
+                Actualizar
+            </button>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando médicos...</p>
+        }
+        else if (!MedicosFiltrados.Any())
+        {
+            <p class="empty-text">No se encontraron médicos.</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Médico</th>
+                            <th>Matrícula</th>
+                            <th>Especialidad</th>
+                            <th>Contacto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var medico in MedicosFiltrados)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@medico.NombreCompleto</strong>
+                                    <div class="table-subtext">Profesional médico</div>
+                                </td>
+
+                                <td>@medico.Matricula</td>
+
+                                <td>
+                                    @if (medico.Especialidad is not null)
+                                    {
+                                        <span class="badge badge-info">@medico.Especialidad.Nombre</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-subtext">Sin especialidad</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <div>@medico.Telefono</div>
+                                    <div class="table-subtext">@medico.Email</div>
+                                </td>
+
+                                <td>
+                                    <div class="actions">
+                                        <button class="action-btn" @onclick="() => EditarMedico(medico.Id)">
+                                            Editar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="() => EliminarMedicoAsync(medico.Id)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private List<Medico> Medicos = new();
+
+    private IEnumerable<Medico> MedicosFiltrados =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Medicos
+            : Medicos.Where(m =>
+                m.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                m.Matricula.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                m.Email.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                (m.Especialidad?.Nombre.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMedicosAsync();
+    }
+
+    private async Task CargarMedicosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await MedicoService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Medicos = resultado.Data ?? new List<Medico>();
+        Cargando = false;
+    }
+
+    private void IrNuevoMedico()
+    {
+        Navigation.NavigateTo("/medicos/nuevo");
+    }
+
+    private void EditarMedico(int id)
+    {
+        Navigation.NavigateTo($"/medicos/editar/{id}");
+    }
+
+    private async Task EliminarMedicoAsync(int id)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await MedicoService.EliminarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = "Médico eliminado correctamente.";
+        await CargarMedicosAsync();
+    }
+}

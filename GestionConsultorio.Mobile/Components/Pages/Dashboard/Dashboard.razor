@@ -1,0 +1,256 @@
+﻿@page "/dashboard"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IPacienteService PacienteService
+@inject IMedicoService MedicoService
+@inject ITurnoService TurnoService
+@inject IConsultorioService ConsultorioService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Dashboard</h2>
+        <p>Resumen general del consultorio médico</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoTurno">
+        + Nuevo turno
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span>Turnos de hoy</span>
+        <strong>@TurnosHoy.Count</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Pacientes registrados</span>
+        <strong>@CantidadPacientes</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Médicos activos</span>
+        <strong>@CantidadMedicos</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Consultorios</span>
+        <strong>@CantidadConsultorios</strong>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <div>
+                    <h3>Agenda de hoy</h3>
+                    <p>Turnos programados para @FechaHoyTexto</p>
+                </div>
+
+                <button class="btn btn-outline" @onclick="IrAgenda">
+                    Ver agenda
+                </button>
+            </div>
+
+            @if (Cargando)
+            {
+                <p class="empty-text">Cargando información...</p>
+            }
+            else if (!TurnosHoy.Any())
+            {
+                <p class="empty-text">No hay turnos cargados para hoy.</p>
+            }
+            else
+            {
+                @foreach (var turno in TurnosHoy)
+                {
+                    <div class="turno-item">
+                        <div class="turno-item-header">
+                            <span class="turno-time">
+                                @turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")
+                            </span>
+
+                            <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                @turno.Estado
+                            </span>
+                        </div>
+
+                        <div class="turno-patient">
+                            @(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")
+                        </div>
+
+                        <div class="turno-detail">
+                            Médico: @(turno.Medico?.NombreCompleto ?? "Sin médico")
+                        </div>
+
+                        <div class="turno-detail">
+                            Consultorio: @(turno.Consultorio?.Nombre ?? "Sin consultorio")
+                        </div>
+
+                        <div class="turno-detail">
+                            Motivo: @turno.MotivoConsulta
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <div>
+                    <h3>Accesos rápidos</h3>
+                    <p>Operaciones frecuentes del sistema</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="quick-action-card" @onclick="IrPacientes">
+                    <span>👥</span>
+                    <strong>Pacientes</strong>
+                    <small>Registrar y consultar pacientes</small>
+                </button>
+
+                <button class="quick-action-card" @onclick="IrMedicos">
+                    <span>👨‍⚕️</span>
+                    <strong>Médicos</strong>
+                    <small>Gestionar profesionales</small>
+                </button>
+
+                <button class="quick-action-card" @onclick="IrTurnos">
+                    <span>🕒</span>
+                    <strong>Turnos</strong>
+                    <small>Administrar turnos</small>
+                </button>
+
+                <button class="quick-action-card" @onclick="IrHistoriales">
+                    <span>📋</span>
+                    <strong>Historial clínico</strong>
+                    <small>Consultar registros médicos</small>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+
+    private int CantidadPacientes;
+    private int CantidadMedicos;
+    private int CantidadConsultorios;
+
+    private List<Turno> TurnosHoy = new();
+
+    private DateOnly FechaHoy = DateOnly.FromDateTime(DateTime.Today);
+
+    private string FechaHoyTexto => DateTime.Today.ToString("dd/MM/yyyy");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDashboardAsync();
+    }
+
+    private async Task CargarDashboardAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var pacientesResponse = await PacienteService.ObtenerTodosAsync();
+        var medicosResponse = await MedicoService.ObtenerTodosAsync();
+        var consultoriosResponse = await ConsultorioService.ObtenerTodosAsync();
+        var turnosResponse = await TurnoService.ObtenerPorFechaAsync(FechaHoy);
+
+        if (!pacientesResponse.Exitoso)
+        {
+            MensajeError = pacientesResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        if (!medicosResponse.Exitoso)
+        {
+            MensajeError = medicosResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        if (!consultoriosResponse.Exitoso)
+        {
+            MensajeError = consultoriosResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        if (!turnosResponse.Exitoso)
+        {
+            MensajeError = turnosResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        CantidadPacientes = pacientesResponse.Data?.Count ?? 0;
+        CantidadMedicos = medicosResponse.Data?.Count ?? 0;
+        CantidadConsultorios = consultoriosResponse.Data?.Count ?? 0;
+        TurnosHoy = turnosResponse.Data ?? new List<Turno>();
+
+        Cargando = false;
+    }
+
+    private static string ObtenerClaseEstado(string estado)
+    {
+        return estado switch
+        {
+            "Confirmado" => "badge badge-success",
+            "Pendiente" => "badge badge-warning",
+            "Cancelado" => "badge badge-danger",
+            "Atendido" => "badge badge-info",
+            "Ausente" => "badge badge-danger",
+            "Reprogramado" => "badge badge-warning",
+            _ => "badge badge-info"
+        };
+    }
+
+    private void IrNuevoTurno()
+    {
+        Navigation.NavigateTo("/turnos/nuevo");
+    }
+
+    private void IrAgenda()
+    {
+        Navigation.NavigateTo("/agenda");
+    }
+
+    private void IrPacientes()
+    {
+        Navigation.NavigateTo("/pacientes");
+    }
+
+    private void IrMedicos()
+    {
+        Navigation.NavigateTo("/medicos");
+    }
+
+    private void IrTurnos()
+    {
+        Navigation.NavigateTo("/turnos");
+    }
+
+    private void IrHistoriales()
+    {
+        Navigation.NavigateTo("/historiales");
+    }
+}

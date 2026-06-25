@@ -1,0 +1,208 @@
+﻿@page "/pacientes/nuevo"
+@page "/pacientes/editar/{PacienteId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IPacienteService PacienteService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información del paciente...</p>
+        }
+        else
+        {
+            <EditForm Model="Paciente" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Nombre completo</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.NombreCompleto"
+                                   placeholder="Ej: Juan Pérez" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">DNI</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.Dni"
+                                   placeholder="Ej: 30111222" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Fecha de nacimiento</label>
+                        <InputDate class="form-control"
+                                   @bind-Value="Paciente.FechaNacimiento" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Teléfono</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.Telefono"
+                                   placeholder="Ej: 2954123456" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.Email"
+                                   placeholder="Ej: paciente@email.com" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Obra social</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.ObraSocial"
+                                   placeholder="Ej: OSDE" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Número de afiliado</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.NumeroAfiliado"
+                                   placeholder="Ej: 123456" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Dirección</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Paciente.Direccion"
+                                   placeholder="Ej: Av. Siempre Viva 123" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar paciente")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? PacienteId { get; set; }
+
+    private Paciente Paciente = new()
+    {
+        FechaNacimiento = DateTime.Today
+    };
+
+    private bool Cargando;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => PacienteId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar paciente" : "Nuevo paciente";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá los datos del paciente seleccionado"
+        : "Registrá un nuevo paciente en el sistema";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EsEdicion)
+        {
+            await CargarPacienteAsync();
+        }
+    }
+
+    private async Task CargarPacienteAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var resultado = await PacienteService.ObtenerPorIdAsync(PacienteId!.Value);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Paciente = resultado.Data ?? new Paciente
+        {
+            FechaNacimiento = DateTime.Today
+        };
+
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (EsEdicion)
+        {
+            await ActualizarPacienteAsync();
+        }
+        else
+        {
+            await CrearPacienteAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private async Task CrearPacienteAsync()
+    {
+        var resultado = await PacienteService.CrearAsync(Paciente);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/pacientes");
+    }
+
+    private async Task ActualizarPacienteAsync()
+    {
+        var resultado = await PacienteService.ActualizarAsync(Paciente.Id, Paciente);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/pacientes");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/pacientes");
+    }
+}

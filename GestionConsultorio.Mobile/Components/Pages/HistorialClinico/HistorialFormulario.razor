@@ -1,0 +1,289 @@
+﻿@page "/historiales/nuevo"
+@page "/historiales/editar/{HistorialId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IHistorialClinicoService HistorialClinicoService
+@inject IPacienteService PacienteService
+@inject ITurnoService TurnoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información del historial clínico...</p>
+        }
+        else
+        {
+            <EditForm Model="Historial" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    @if (!EsEdicion)
+                    {
+                        <div>
+                            <label class="form-label">Paciente</label>
+                            <InputSelect class="form-control"
+                                         @bind-Value="Historial.PacienteId"
+                                         @onchange="OnPacienteChanged">
+                                <option value="0">Seleccionar paciente</option>
+
+                                @foreach (var paciente in Pacientes)
+                                {
+                                    <option value="@paciente.Id">
+                                        @paciente.NombreCompleto - DNI @paciente.Dni
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Turno atendido</label>
+                            <InputSelect class="form-control" @bind-Value="Historial.TurnoId">
+                                <option value="0">Seleccionar turno</option>
+
+                                @foreach (var turno in TurnosPaciente)
+                                {
+                                    <option value="@turno.Id">
+                                        @turno.Fecha.ToString("dd/MM/yyyy") - @turno.HoraInicio.ToString("HH:mm") - @(turno.Medico?.NombreCompleto ?? "Sin médico")
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+                    }
+
+                    <div class="form-grid-full">
+                        <label class="form-label">Diagnóstico</label>
+                        <InputTextArea class="form-control"
+                                       rows="4"
+                                       @bind-Value="Historial.Diagnostico"
+                                       placeholder="Ej: Faringitis aguda, control general, hipertensión..." />
+                    </div>
+
+                    <div class="form-grid-full">
+                        <label class="form-label">Tratamiento</label>
+                        <InputTextArea class="form-control"
+                                       rows="4"
+                                       @bind-Value="Historial.Tratamiento"
+                                       placeholder="Indicaciones médicas, medicación, reposo, controles..." />
+                    </div>
+
+                    <div class="form-grid-full">
+                        <label class="form-label">Observaciones</label>
+                        <InputTextArea class="form-control"
+                                       rows="4"
+                                       @bind-Value="Historial.Observaciones"
+                                       placeholder="Observaciones adicionales del médico..." />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar historial")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? HistorialId { get; set; }
+
+    private HistorialClinico Historial = new();
+
+    private List<Paciente> Pacientes = new();
+    private List<Turno> TurnosPaciente = new();
+
+    private bool Cargando = true;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => HistorialId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar historial clínico" : "Nuevo historial clínico";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá diagnóstico, tratamiento u observaciones"
+        : "Registrá información clínica de un turno atendido";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        if (EsEdicion)
+        {
+            var historialResponse = await HistorialClinicoService.ObtenerPorIdAsync(HistorialId!.Value);
+
+            if (!historialResponse.Exitoso)
+            {
+                MensajeError = historialResponse.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            Historial = historialResponse.Data ?? new HistorialClinico();
+            Cargando = false;
+            return;
+        }
+
+        var pacientesResponse = await PacienteService.ObtenerTodosAsync();
+
+        if (!pacientesResponse.Exitoso)
+        {
+            MensajeError = pacientesResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Pacientes = pacientesResponse.Data ?? new List<Paciente>();
+        Cargando = false;
+    }
+
+    private async Task OnPacienteChanged(ChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+
+        if (!int.TryParse(e.Value?.ToString(), out var pacienteId) || pacienteId == 0)
+        {
+            TurnosPaciente = new List<Turno>();
+            Historial.TurnoId = 0;
+            return;
+        }
+
+        Historial.PacienteId = pacienteId;
+
+        var turnosResponse = await TurnoService.ObtenerPorPacienteAsync(pacienteId);
+
+        if (!turnosResponse.Exitoso)
+        {
+            MensajeError = turnosResponse.Mensaje;
+            return;
+        }
+
+        TurnosPaciente = turnosResponse.Data?
+            .Where(t => t.Estado.ToString() == "Atendido")
+            .OrderByDescending(t => t.Fecha)
+            .ThenByDescending(t => t.HoraInicio)
+            .ToList() ?? new List<Turno>();
+
+        Historial.TurnoId = 0;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (!ValidarFormulario())
+        {
+            Guardando = false;
+            return;
+        }
+
+        if (EsEdicion)
+        {
+            await ActualizarHistorialAsync();
+        }
+        else
+        {
+            await CrearHistorialAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private bool ValidarFormulario()
+    {
+        if (!EsEdicion)
+        {
+            if (Historial.PacienteId == 0)
+            {
+                MensajeError = "Seleccioná un paciente.";
+                return false;
+            }
+
+            if (Historial.TurnoId == 0)
+            {
+                MensajeError = "Seleccioná un turno atendido.";
+                return false;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Historial.Diagnostico))
+        {
+            MensajeError = "Ingresá el diagnóstico.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Historial.Tratamiento))
+        {
+            MensajeError = "Ingresá el tratamiento.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task CrearHistorialAsync()
+    {
+        var resultado = await HistorialClinicoService.CrearAsync(Historial);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/historiales");
+    }
+
+    private async Task ActualizarHistorialAsync()
+    {
+        var resultado = await HistorialClinicoService.ActualizarAsync(Historial.Id, Historial);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/historiales");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/historiales");
+    }
+}

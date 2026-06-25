@@ -1,0 +1,277 @@
+﻿@page "/agenda"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject ITurnoService TurnoService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Agenda</h2>
+        <p>Vista diaria de turnos programados</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevoTurno">
+        + Nuevo turno
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="agenda-grid">
+    <div class="card agenda-day-card">
+        <div class="agenda-date-box">
+            <span>Fecha seleccionada</span>
+            <strong>@FechaSeleccionada.ToString("dd/MM/yyyy")</strong>
+        </div>
+
+        <div style="margin-top: 18px;">
+            <label class="form-label">Cambiar fecha</label>
+            <InputDate class="form-control" @bind-Value="FechaSeleccionada" />
+        </div>
+
+        <div class="form-actions" style="justify-content: stretch;">
+            <button class="btn btn-primary" style="width: 100%;" @onclick="CargarAgendaAsync">
+                Ver agenda
+            </button>
+        </div>
+
+        <div class="agenda-summary">
+            <div>
+                <span>Total turnos</span>
+                <strong>@Turnos.Count</strong>
+            </div>
+
+            <div>
+                <span>Pendientes</span>
+                <strong>@CantidadPendientes</strong>
+            </div>
+
+            <div>
+                <span>Confirmados</span>
+                <strong>@CantidadConfirmados</strong>
+            </div>
+
+            <div>
+                <span>Atendidos</span>
+                <strong>@CantidadAtendidos</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <div>
+                    <h3>Turnos del día</h3>
+                    <p>Agenda correspondiente al @FechaSeleccionada.ToString("dd/MM/yyyy")</p>
+                </div>
+
+                <button class="btn btn-outline" @onclick="CargarAgendaAsync">
+                    Actualizar
+                </button>
+            </div>
+
+            @if (Cargando)
+            {
+                <p class="empty-text">Cargando agenda...</p>
+            }
+            else if (!Turnos.Any())
+            {
+                <p class="empty-text">No hay turnos programados para esta fecha.</p>
+            }
+            else
+            {
+                <div class="agenda-timeline">
+                    @foreach (var turno in TurnosOrdenados)
+                    {
+                        <div class="agenda-timeline-item">
+                            <div class="agenda-hour">
+                                @turno.HoraInicio.ToString("HH:mm")
+                            </div>
+
+                            <div class="agenda-card">
+                                <div class="agenda-card-header">
+                                    <div>
+                                        <strong>@(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")</strong>
+                                        <span>@turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")</span>
+                                    </div>
+
+                                    <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                        @turno.Estado
+                                    </span>
+                                </div>
+
+                                <div class="agenda-info-grid">
+                                    <div>
+                                        <span>Médico</span>
+                                        <strong>@(turno.Medico?.NombreCompleto ?? "Sin médico")</strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Especialidad</span>
+                                        <strong>@(turno.Medico?.Especialidad?.Nombre ?? "Sin especialidad")</strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Consultorio</span>
+                                        <strong>@(turno.Consultorio?.Nombre ?? "Sin consultorio")</strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Motivo</span>
+                                        <strong>@turno.MotivoConsulta</strong>
+                                    </div>
+                                </div>
+
+                                <div class="actions agenda-actions">
+                                    <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
+                                        Confirmar
+                                    </button>
+
+                                    <button class="action-btn" @onclick="() => AtenderAsync(turno.Id)">
+                                        Atender
+                                    </button>
+
+                                    <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
+                                        Ausente
+                                    </button>
+
+                                    <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
+                                        Editar
+                                    </button>
+
+                                    <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+
+    private DateTime FechaSeleccionada = DateTime.Today;
+    private List<Turno> Turnos = new();
+
+    private IEnumerable<Turno> TurnosOrdenados =>
+        Turnos.OrderBy(t => t.HoraInicio);
+
+    private int CantidadPendientes =>
+        Turnos.Count(t => t.Estado.ToString() == "Pendiente");
+
+    private int CantidadConfirmados =>
+        Turnos.Count(t => t.Estado.ToString() == "Confirmado");
+
+    private int CantidadAtendidos =>
+        Turnos.Count(t => t.Estado.ToString() == "Atendido");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAgendaAsync();
+    }
+
+    private async Task CargarAgendaAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var fecha = DateOnly.FromDateTime(FechaSeleccionada);
+        var resultado = await TurnoService.ObtenerPorFechaAsync(fecha);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Turnos = resultado.Data ?? new List<Turno>();
+        Cargando = false;
+    }
+
+    private async Task ConfirmarAsync(int id)
+    {
+        var resultado = await TurnoService.ConfirmarAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno confirmado correctamente.");
+    }
+
+    private async Task AtenderAsync(int id)
+    {
+        var resultado = await TurnoService.AtenderAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno marcado como atendido.");
+    }
+
+    private async Task MarcarAusenteAsync(int id)
+    {
+        var resultado = await TurnoService.MarcarAusenteAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno marcado como ausente.");
+    }
+
+    private async Task CancelarAsync(int id)
+    {
+        var resultado = await TurnoService.CancelarAsync(id);
+        await ProcesarAccionAsync(resultado, "Turno cancelado correctamente.");
+    }
+
+    private async Task ProcesarAccionAsync(GestionConsultorio.Shared.Responses.ApiResponse<bool> resultado, string mensajeExito)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = mensajeExito;
+        await CargarAgendaAsync();
+    }
+
+    private void IrNuevoTurno()
+    {
+        Navigation.NavigateTo("/turnos/nuevo");
+    }
+
+    private void EditarTurno(int id)
+    {
+        Navigation.NavigateTo($"/turnos/editar/{id}");
+    }
+
+    private static string ObtenerClaseEstado(string estado)
+    {
+        return estado switch
+        {
+            "Confirmado" => "badge badge-success",
+            "Pendiente" => "badge badge-warning",
+            "Cancelado" => "badge badge-danger",
+            "Atendido" => "badge badge-info",
+            "Ausente" => "badge badge-danger",
+            "Reprogramado" => "badge badge-warning",
+            _ => "badge badge-info"
+        };
+    }
+}

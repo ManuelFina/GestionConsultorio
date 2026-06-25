@@ -1,0 +1,167 @@
+﻿@page "/especialidades"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IEspecialidadService EspecialidadService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Especialidades</h2>
+        <p>Gestión de especialidades médicas disponibles</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevaEspecialidad">
+        + Nueva especialidad
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(MensajeExito))
+{
+    <div class="alert alert-success">
+        @MensajeExito
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="search-box">
+                <input class="form-control"
+                       placeholder="Buscar especialidad..."
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-outline" @onclick="CargarEspecialidadesAsync">
+                Actualizar
+            </button>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando especialidades...</p>
+        }
+        else if (!EspecialidadesFiltradas.Any())
+        {
+            <p class="empty-text">No se encontraron especialidades.</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Especialidad</th>
+                            <th>Descripción</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var especialidad in EspecialidadesFiltradas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@especialidad.Nombre</strong>
+                                </td>
+
+                                <td>
+                                    <span class="table-subtext">
+                                        Especialidad médica registrada en el sistema
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="actions">
+                                        <button class="action-btn" @onclick="() => EditarEspecialidad(especialidad.Id)">
+                                            Editar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="() => EliminarEspecialidadAsync(especialidad.Id)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string MensajeExito = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private List<Especialidad> Especialidades = new();
+
+    private IEnumerable<Especialidad> EspecialidadesFiltradas =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Especialidades
+            : Especialidades.Where(e =>
+                e.Nombre.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEspecialidadesAsync();
+    }
+
+    private async Task CargarEspecialidadesAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await EspecialidadService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Especialidades = resultado.Data ?? new List<Especialidad>();
+        Cargando = false;
+    }
+
+    private void IrNuevaEspecialidad()
+    {
+        Navigation.NavigateTo("/especialidades/nuevo");
+    }
+
+    private void EditarEspecialidad(int id)
+    {
+        Navigation.NavigateTo($"/especialidades/editar/{id}");
+    }
+
+    private async Task EliminarEspecialidadAsync(int id)
+    {
+        MensajeError = string.Empty;
+        MensajeExito = string.Empty;
+
+        var resultado = await EspecialidadService.EliminarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        MensajeExito = "Especialidad eliminada correctamente.";
+        await CargarEspecialidadesAsync();
+    }
+}

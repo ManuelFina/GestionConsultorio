@@ -1,0 +1,336 @@
+﻿@page "/turnos/nuevo"
+@page "/turnos/editar/{TurnoId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+@using GestionConsultorio.Shared.Enums
+
+@inject ITurnoService TurnoService
+@inject IPacienteService PacienteService
+@inject IMedicoService MedicoService
+@inject IConsultorioService ConsultorioService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información del turno...</p>
+        }
+        else
+        {
+            <EditForm Model="Turno" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Paciente</label>
+                        <InputSelect class="form-control" @bind-Value="Turno.PacienteId">
+                            <option value="0">Seleccionar paciente</option>
+
+                            @foreach (var paciente in Pacientes)
+                            {
+                                <option value="@paciente.Id">
+                                    @paciente.NombreCompleto - DNI @paciente.Dni
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Médico</label>
+                        <InputSelect class="form-control" @bind-Value="Turno.MedicoId">
+                            <option value="0">Seleccionar médico</option>
+
+                            @foreach (var medico in Medicos)
+                            {
+                                <option value="@medico.Id">
+                                    @medico.NombreCompleto - @(medico.Especialidad?.Nombre ?? "Sin especialidad")
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Consultorio</label>
+                        <InputSelect class="form-control" @bind-Value="Turno.ConsultorioId">
+                            <option value="0">Seleccionar consultorio</option>
+
+                            @foreach (var consultorio in Consultorios)
+                            {
+                                <option value="@consultorio.Id">
+                                    @consultorio.Nombre
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Fecha</label>
+                        <InputDate class="form-control" @bind-Value="FechaTurno" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Hora inicio</label>
+                        <InputText class="form-control"
+                                   type="time"
+                                   @bind-Value="HoraInicioTexto" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Hora fin</label>
+                        <InputText class="form-control"
+                                   type="time"
+                                   @bind-Value="HoraFinTexto" />
+                    </div>
+
+                    @if (EsEdicion)
+                    {
+                        <div>
+                            <label class="form-label">Estado</label>
+                            <InputSelect class="form-control" @bind-Value="Turno.Estado">
+                                <option value="@EstadoTurno.Pendiente">Pendiente</option>
+                                <option value="@EstadoTurno.Confirmado">Confirmado</option>
+                                <option value="@EstadoTurno.Atendido">Atendido</option>
+                                <option value="@EstadoTurno.Cancelado">Cancelado</option>
+                                <option value="@EstadoTurno.Reprogramado">Reprogramado</option>
+                                <option value="@EstadoTurno.Ausente">Ausente</option>
+                            </InputSelect>
+                        </div>
+                    }
+
+                    <div class="form-grid-full">
+                        <label class="form-label">Motivo de consulta</label>
+                        <InputTextArea class="form-control"
+                                       rows="4"
+                                       @bind-Value="Turno.MotivoConsulta"
+                                       placeholder="Ej: Control general, dolor de garganta, consulta médica..." />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar turno")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? TurnoId { get; set; }
+
+    private Turno Turno = new()
+    {
+        Estado = EstadoTurno.Pendiente
+    };
+
+    private List<Paciente> Pacientes = new();
+    private List<Medico> Medicos = new();
+    private List<Consultorio> Consultorios = new();
+
+    private DateTime FechaTurno = DateTime.Today;
+    private string HoraInicioTexto = "09:00";
+    private string HoraFinTexto = "09:30";
+
+    private bool Cargando = true;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => TurnoId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar turno" : "Nuevo turno";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá los datos del turno seleccionado"
+        : "Registrá un nuevo turno en la agenda";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var pacientesResponse = await PacienteService.ObtenerTodosAsync();
+        var medicosResponse = await MedicoService.ObtenerTodosAsync();
+        var consultoriosResponse = await ConsultorioService.ObtenerTodosAsync();
+
+        if (!pacientesResponse.Exitoso)
+        {
+            MensajeError = pacientesResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        if (!medicosResponse.Exitoso)
+        {
+            MensajeError = medicosResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        if (!consultoriosResponse.Exitoso)
+        {
+            MensajeError = consultoriosResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Pacientes = pacientesResponse.Data ?? new List<Paciente>();
+        Medicos = medicosResponse.Data ?? new List<Medico>();
+        Consultorios = consultoriosResponse.Data ?? new List<Consultorio>();
+
+        if (EsEdicion)
+        {
+            var turnoResponse = await TurnoService.ObtenerPorIdAsync(TurnoId!.Value);
+
+            if (!turnoResponse.Exitoso)
+            {
+                MensajeError = turnoResponse.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            Turno = turnoResponse.Data ?? new Turno();
+
+            FechaTurno = Turno.Fecha.ToDateTime(TimeOnly.MinValue);
+            HoraInicioTexto = Turno.HoraInicio.ToString("HH:mm");
+            HoraFinTexto = Turno.HoraFin.ToString("HH:mm");
+        }
+
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (!ValidarFormulario())
+        {
+            Guardando = false;
+            return;
+        }
+
+        Turno.Fecha = DateOnly.FromDateTime(FechaTurno);
+        Turno.HoraInicio = TimeOnly.Parse(HoraInicioTexto);
+        Turno.HoraFin = TimeOnly.Parse(HoraFinTexto);
+
+        if (EsEdicion)
+        {
+            await ActualizarTurnoAsync();
+        }
+        else
+        {
+            await CrearTurnoAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private bool ValidarFormulario()
+    {
+        if (Turno.PacienteId == 0)
+        {
+            MensajeError = "Seleccioná un paciente.";
+            return false;
+        }
+
+        if (Turno.MedicoId == 0)
+        {
+            MensajeError = "Seleccioná un médico.";
+            return false;
+        }
+
+        if (Turno.ConsultorioId == 0)
+        {
+            MensajeError = "Seleccioná un consultorio.";
+            return false;
+        }
+
+        if (!TimeOnly.TryParse(HoraInicioTexto, out var horaInicio))
+        {
+            MensajeError = "Ingresá una hora de inicio válida.";
+            return false;
+        }
+
+        if (!TimeOnly.TryParse(HoraFinTexto, out var horaFin))
+        {
+            MensajeError = "Ingresá una hora de fin válida.";
+            return false;
+        }
+
+        if (horaInicio >= horaFin)
+        {
+            MensajeError = "La hora de inicio debe ser menor que la hora de fin.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Turno.MotivoConsulta))
+        {
+            MensajeError = "Ingresá el motivo de consulta.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task CrearTurnoAsync()
+    {
+        var resultado = await TurnoService.CrearAsync(Turno);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/turnos");
+    }
+
+    private async Task ActualizarTurnoAsync()
+    {
+        var resultado = await TurnoService.ActualizarAsync(Turno.Id, Turno);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/turnos");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/turnos");
+    }
+}

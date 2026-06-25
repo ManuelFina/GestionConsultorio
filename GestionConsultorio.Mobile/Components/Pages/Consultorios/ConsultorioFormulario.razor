@@ -1,0 +1,160 @@
+﻿@page "/consultorios/nuevo"
+@page "/consultorios/editar/{ConsultorioId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Models
+
+@inject IConsultorioService ConsultorioService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información del consultorio...</p>
+        }
+        else
+        {
+            <EditForm Model="Consultorio" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Nombre del consultorio</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Consultorio.Nombre"
+                                   placeholder="Ej: Consultorio 1" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : "Guardar consultorio")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? ConsultorioId { get; set; }
+
+    private Consultorio Consultorio = new();
+
+    private bool Cargando;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => ConsultorioId.HasValue;
+
+    private string TituloPagina => EsEdicion ? "Editar consultorio" : "Nuevo consultorio";
+
+    private string SubtituloPagina => EsEdicion
+        ? "Actualizá el nombre del consultorio seleccionado"
+        : "Registrá un nuevo espacio de atención";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EsEdicion)
+        {
+            await CargarConsultorioAsync();
+        }
+    }
+
+    private async Task CargarConsultorioAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var resultado = await ConsultorioService.ObtenerPorIdAsync(ConsultorioId!.Value);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Consultorio = resultado.Data ?? new Consultorio();
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(Consultorio.Nombre))
+        {
+            MensajeError = "Ingresá el nombre del consultorio.";
+            Guardando = false;
+            return;
+        }
+
+        if (EsEdicion)
+        {
+            await ActualizarConsultorioAsync();
+        }
+        else
+        {
+            await CrearConsultorioAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private async Task CrearConsultorioAsync()
+    {
+        var resultado = await ConsultorioService.CrearAsync(Consultorio);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/consultorios");
+    }
+
+    private async Task ActualizarConsultorioAsync()
+    {
+        var resultado = await ConsultorioService.ActualizarAsync(Consultorio.Id, Consultorio);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            return;
+        }
+
+        Navigation.NavigateTo("/consultorios");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/consultorios");
+    }
+}
