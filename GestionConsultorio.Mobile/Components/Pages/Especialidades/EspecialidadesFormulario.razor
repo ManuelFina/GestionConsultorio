@@ -5,6 +5,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IEspecialidadService EspecialidadService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -133,9 +134,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Especialidad creada",
+            "La especialidad se registró correctamente.");
 
         Navigation.NavigateTo("/especialidades");
     }
@@ -146,9 +154,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Especialidad actualizada",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/especialidades");
     }

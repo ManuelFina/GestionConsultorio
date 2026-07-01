@@ -6,6 +6,7 @@
 
 @inject IMedicoService MedicoService
 @inject IEspecialidadService EspecialidadService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -158,9 +159,8 @@
         Guardando = true;
         MensajeError = string.Empty;
 
-        if (Medico.EspecialidadId == 0)
+        if (!ValidarFormulario())
         {
-            MensajeError = "Seleccioná una especialidad.";
             Guardando = false;
             return;
         }
@@ -177,15 +177,57 @@
         Guardando = false;
     }
 
+    private bool ValidarFormulario()
+    {
+        if (string.IsNullOrWhiteSpace(Medico.NombreCompleto))
+        {
+            MensajeError = "Ingresá el nombre completo del médico.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Medico.Matricula))
+        {
+            MensajeError = "Ingresá la matrícula del médico.";
+            return false;
+        }
+
+        if (Medico.EspecialidadId == 0)
+        {
+            MensajeError = "Seleccioná una especialidad.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Medico.Telefono))
+        {
+            MensajeError = "Ingresá el teléfono del médico.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Medico.Email))
+        {
+            MensajeError = "Ingresá el email del médico.";
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task CrearMedicoAsync()
     {
         var resultado = await MedicoService.CrearAsync(Medico);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Médico creado",
+            "El médico se registró correctamente.");
 
         Navigation.NavigateTo("/medicos");
     }
@@ -196,9 +238,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Médico actualizado",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/medicos");
     }

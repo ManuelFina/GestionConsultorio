@@ -40,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddScoped<ISesionService, SesionService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
 
+        builder.Services.AddScoped<IAlertService, AlertService>();
+
         return builder.Build();
 	}
 }

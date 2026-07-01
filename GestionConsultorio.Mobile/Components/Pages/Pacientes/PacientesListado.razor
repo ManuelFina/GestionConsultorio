@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IPacienteService PacienteService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -75,14 +69,14 @@
                             <tr>
                                 <td>
                                     <strong>@paciente.NombreCompleto</strong>
-                                    <div class="table-subtext">@paciente.Direccion</div>
+                                    <div class="table-subtext">@MostrarDato(paciente.Direccion)</div>
                                 </td>
 
                                 <td>@paciente.Dni</td>
 
                                 <td>
-                                    <div>@paciente.Telefono</div>
-                                    <div class="table-subtext">@paciente.Email</div>
+                                    <div>@MostrarDato(paciente.Telefono)</div>
+                                    <div class="table-subtext">@MostrarDato(paciente.Email)</div>
                                 </td>
 
                                 <td>
@@ -125,7 +119,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
     private string TextoBusqueda = string.Empty;
 
     private List<Paciente> Pacientes = new();
@@ -134,10 +127,10 @@
         string.IsNullOrWhiteSpace(TextoBusqueda)
             ? Pacientes
             : Pacientes.Where(p =>
-                p.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                p.Dni.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                p.ObraSocial.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                p.Email.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+                (p.NombreCompleto?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Dni?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.ObraSocial?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Email?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,7 +141,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var resultado = await PacienteService.ObtenerTodosAsync();
 
@@ -181,17 +173,37 @@
     private async Task EliminarPacienteAsync(int id)
     {
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar paciente",
+            "¿Seguro que querés eliminar este paciente?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
 
         var resultado = await PacienteService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar",
+                resultado.Mensaje);
+
             return;
         }
 
-        MensajeExito = "Paciente eliminado correctamente.";
+        await AlertService.SuccessAsync(
+            "Paciente eliminado",
+            "El paciente se eliminó correctamente.");
+
         await CargarPacientesAsync();
+    }
+
+    private static string MostrarDato(string? valor)
+    {
+        return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
     }
 }

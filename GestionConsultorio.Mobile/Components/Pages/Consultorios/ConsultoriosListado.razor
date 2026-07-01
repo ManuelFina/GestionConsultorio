@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IConsultorioService ConsultorioService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -108,7 +102,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
     private string TextoBusqueda = string.Empty;
 
     private List<Consultorio> Consultorios = new();
@@ -128,7 +121,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var resultado = await ConsultorioService.ObtenerTodosAsync();
 
@@ -156,17 +148,32 @@
     private async Task EliminarConsultorioAsync(int id)
     {
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar consultorio",
+            "¿Seguro que querés eliminar este consultorio?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
 
         var resultado = await ConsultorioService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar",
+                resultado.Mensaje);
+
             return;
         }
 
-        MensajeExito = "Consultorio eliminado correctamente.";
+        await AlertService.SuccessAsync(
+            "Consultorio eliminado",
+            "El consultorio se eliminó correctamente.");
+
         await CargarConsultoriosAsync();
     }
 }

@@ -19,16 +19,45 @@
 
 html,
 body {
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: 'Aptos', 'Segoe UI', 'Calibri', Arial, sans-serif;
     background-color: var(--color-background);
     color: var(--color-text);
     margin: 0;
     min-height: 100%;
+    font-size: 15px;
+    letter-spacing: -0.01em;
 }
 
 a {
     color: inherit;
     text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.page-title h2,
+.section-header h3,
+.sidebar-brand-text h1,
+.login-card h1 {
+    font-family: 'Aptos Display', 'Aptos', 'Segoe UI', 'Calibri', Arial, sans-serif;
+    letter-spacing: -0.025em;
+}
+
+.card,
+.form-control,
+.btn,
+.data-table,
+.badge,
+.action-btn,
+input,
+select,
+textarea,
+button {
+    font-family: inherit;
 }
 
 /* =========================
@@ -88,6 +117,7 @@ a {
     .topbar-title strong {
         font-size: 15px;
         color: var(--color-secondary);
+        font-weight: 650;
     }
 
     .topbar-title span {
@@ -150,7 +180,7 @@ a {
 .sidebar-brand-text h1 {
     font-size: 17px;
     margin: 0;
-    font-weight: 700;
+    font-weight: 650;
 }
 
 .sidebar-brand-text span {
@@ -216,12 +246,13 @@ a {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: 650;
 }
 
 .user-info strong {
     display: block;
     font-size: 13px;
+    font-weight: 650;
 }
 
 .user-info span {
@@ -258,15 +289,15 @@ a {
 
 .page-title h2 {
     margin: 0;
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 27px;
+    font-weight: 650;
     color: var(--color-secondary);
 }
 
 .page-title p {
     margin: 6px 0 0;
     color: var(--color-muted);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 /* =========================
@@ -311,6 +342,7 @@ a {
         color: var(--color-secondary);
         font-size: 28px;
         line-height: 1;
+        font-weight: 650;
     }
 
 /* =========================
@@ -350,7 +382,7 @@ a {
 .form-label {
     display: block;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 650;
     margin-bottom: 7px;
     color: var(--color-secondary);
 }
@@ -381,7 +413,7 @@ a {
     border-radius: 12px;
     padding: 10px 15px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 650;
     cursor: pointer;
     transition: 0.2s ease;
 }
@@ -441,6 +473,7 @@ a {
         letter-spacing: 0.05em;
         padding: 13px 12px;
         border-bottom: 1px solid var(--color-border);
+        font-weight: 650;
     }
 
     .data-table td {
@@ -498,7 +531,7 @@ a {
     border-radius: 999px;
     padding: 5px 10px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 650;
 }
 
 .badge-success {
@@ -559,13 +592,15 @@ a {
 .login-card h1 {
     margin: 0;
     color: var(--color-secondary);
-    font-size: 25px;
+    font-size: 27px;
+    font-weight: 650;
 }
 
 .login-card p {
     color: var(--color-muted);
     margin: 8px 0 24px;
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.45;
 }
 
 .login-help {
@@ -618,6 +653,7 @@ a {
         margin: 0;
         font-size: 18px;
         color: var(--color-secondary);
+        font-weight: 650;
     }
 
     .section-header p {
@@ -666,6 +702,7 @@ a {
         font-size: 15px;
         color: var(--color-secondary);
         margin-bottom: 4px;
+        font-weight: 650;
     }
 
     .quick-action-card small {
@@ -712,6 +749,7 @@ a {
     margin: 0;
     font-size: 22px;
     color: var(--color-secondary);
+    font-weight: 650;
 }
 
 .patient-profile p {
@@ -746,6 +784,7 @@ a {
         display: block;
         color: var(--color-secondary);
         font-size: 14px;
+        font-weight: 650;
     }
 
 .clinical-history-item {
@@ -766,6 +805,7 @@ a {
     display: block;
     color: var(--color-secondary);
     margin-bottom: 5px;
+    font-weight: 650;
 }
 
 .clinical-history-item p {
@@ -804,12 +844,12 @@ a {
 }
 
 .turno-time {
-    font-weight: 700;
+    font-weight: 650;
     color: var(--color-secondary);
 }
 
 .turno-patient {
-    font-weight: 700;
+    font-weight: 650;
     margin-bottom: 4px;
 }
 
@@ -849,6 +889,7 @@ a {
         display: block;
         color: var(--color-primary-dark);
         font-size: 24px;
+        font-weight: 650;
     }
 
 .agenda-summary {
@@ -878,6 +919,7 @@ a {
     .agenda-summary strong {
         color: var(--color-secondary);
         font-size: 18px;
+        font-weight: 650;
     }
 
 .agenda-timeline {
@@ -923,6 +965,7 @@ a {
         color: var(--color-secondary);
         font-size: 16px;
         margin-bottom: 4px;
+        font-weight: 650;
     }
 
     .agenda-card-header span {
@@ -954,9 +997,93 @@ a {
         display: block;
         color: var(--color-secondary);
         font-size: 13px;
+        font-weight: 650;
     }
 
 .agenda-actions {
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+}
+
+/* =========================
+   HISTORIAL CLINICO
+========================= */
+
+.history-list {
+    display: grid;
+    gap: 16px;
+}
+
+.history-card {
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    background-color: white;
+    padding: 18px;
+}
+
+.history-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+    .history-card-header h3 {
+        margin: 0;
+        color: var(--color-secondary);
+        font-size: 17px;
+        font-weight: 650;
+    }
+
+    .history-card-header p {
+        margin: 5px 0 0;
+        color: var(--color-muted);
+        font-size: 13px;
+    }
+
+.history-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+    .history-info-grid div {
+        background-color: #f8fafc;
+        border-radius: 14px;
+        padding: 12px;
+    }
+
+    .history-info-grid span,
+    .history-observations span {
+        display: block;
+        color: var(--color-muted);
+        font-size: 12px;
+        margin-bottom: 5px;
+    }
+
+    .history-info-grid strong {
+        display: block;
+        color: var(--color-secondary);
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+.history-observations {
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 13px;
+    margin-bottom: 14px;
+}
+
+    .history-observations p {
+        margin: 0;
+        color: var(--color-text);
+        font-size: 14px;
+    }
+
+.history-actions {
     padding-top: 12px;
     border-top: 1px solid var(--color-border);
 }
@@ -1017,8 +1144,13 @@ a {
         grid-template-columns: 1fr;
     }
 
-    .agenda-info-grid {
+    .agenda-info-grid,
+    .history-info-grid {
         grid-template-columns: 1fr;
+    }
+
+    .history-card-header {
+        flex-direction: column;
     }
 }
 
@@ -1037,91 +1169,5 @@ a {
 
     .sidebar {
         width: 86vw;
-    }
-}
-.history-list {
-    display: grid;
-    gap: 16px;
-}
-
-.history-card {
-    border: 1px solid var(--color-border);
-    border-radius: 18px;
-    background-color: white;
-    padding: 18px;
-}
-
-.history-card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 16px;
-}
-
-    .history-card-header h3 {
-        margin: 0;
-        color: var(--color-secondary);
-        font-size: 17px;
-    }
-
-    .history-card-header p {
-        margin: 5px 0 0;
-        color: var(--color-muted);
-        font-size: 13px;
-    }
-
-.history-info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-    .history-info-grid div {
-        background-color: #f8fafc;
-        border-radius: 14px;
-        padding: 12px;
-    }
-
-    .history-info-grid span,
-    .history-observations span {
-        display: block;
-        color: var(--color-muted);
-        font-size: 12px;
-        margin-bottom: 5px;
-    }
-
-    .history-info-grid strong {
-        display: block;
-        color: var(--color-secondary);
-        font-size: 13px;
-    }
-
-.history-observations {
-    border: 1px solid var(--color-border);
-    border-radius: 14px;
-    padding: 13px;
-    margin-bottom: 14px;
-}
-
-    .history-observations p {
-        margin: 0;
-        color: var(--color-text);
-        font-size: 14px;
-    }
-
-.history-actions {
-    padding-top: 12px;
-    border-top: 1px solid var(--color-border);
-}
-
-@media (max-width: 700px) {
-    .history-info-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .history-card-header {
-        flex-direction: column;
     }
 }

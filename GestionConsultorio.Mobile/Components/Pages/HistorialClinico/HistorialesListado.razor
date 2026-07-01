@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IHistorialClinicoService HistorialClinicoService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -76,12 +70,12 @@
                         <div class="history-info-grid">
                             <div>
                                 <span>Diagnóstico</span>
-                                <strong>@historial.Diagnostico</strong>
+                                <strong>@MostrarDato(historial.Diagnostico)</strong>
                             </div>
 
                             <div>
                                 <span>Tratamiento</span>
-                                <strong>@historial.Tratamiento</strong>
+                                <strong>@MostrarDato(historial.Tratamiento)</strong>
                             </div>
 
                             <div>
@@ -108,7 +102,7 @@
 
                         <div class="history-observations">
                             <span>Observaciones</span>
-                            <p>@MostrarDato(historial.Observaciones)</p>
+                            <p>@MostrarDato(historial.Observaciones, "Sin observaciones registradas.")</p>
                         </div>
 
                         <div class="actions history-actions">
@@ -130,7 +124,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
     private string TextoBusqueda = string.Empty;
 
     private List<HistorialClinico> Historiales = new();
@@ -139,10 +132,10 @@
         string.IsNullOrWhiteSpace(TextoBusqueda)
             ? Historiales
             : Historiales.Where(h =>
-                (h.Paciente?.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                h.Diagnostico.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                h.Tratamiento.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                h.Observaciones.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+                (h.Paciente?.NombreCompleto?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.Diagnostico?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.Tratamiento?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.Observaciones?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -153,7 +146,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var resultado = await HistorialClinicoService.ObtenerTodosAsync();
 
@@ -181,22 +173,37 @@
     private async Task EliminarHistorialAsync(int id)
     {
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar historial clínico",
+            "¿Seguro que querés eliminar este registro clínico?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
 
         var resultado = await HistorialClinicoService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar",
+                resultado.Mensaje);
+
             return;
         }
 
-        MensajeExito = "Historial clínico eliminado correctamente.";
+        await AlertService.SuccessAsync(
+            "Historial eliminado",
+            "El historial clínico se eliminó correctamente.");
+
         await CargarHistorialesAsync();
     }
 
-    private static string MostrarDato(string valor)
+    private static string MostrarDato(string? valor, string textoAlternativo = "-")
     {
-        return string.IsNullOrWhiteSpace(valor) ? "Sin observaciones registradas." : valor;
+        return string.IsNullOrWhiteSpace(valor) ? textoAlternativo : valor;
     }
 }

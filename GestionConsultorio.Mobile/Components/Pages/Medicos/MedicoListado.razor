@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IMedicoService MedicoService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -118,7 +112,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
     private string TextoBusqueda = string.Empty;
 
     private List<Medico> Medicos = new();
@@ -127,10 +120,10 @@
         string.IsNullOrWhiteSpace(TextoBusqueda)
             ? Medicos
             : Medicos.Where(m =>
-                m.NombreCompleto.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                m.Matricula.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                m.Email.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ||
-                (m.Especialidad?.Nombre.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+                (m.NombreCompleto?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.Matricula?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.Email?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.Especialidad?.Nombre?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,7 +134,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var resultado = await MedicoService.ObtenerTodosAsync();
 
@@ -169,17 +161,32 @@
     private async Task EliminarMedicoAsync(int id)
     {
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar médico",
+            "¿Seguro que querés eliminar este médico?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
 
         var resultado = await MedicoService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar",
+                resultado.Mensaje);
+
             return;
         }
 
-        MensajeExito = "Médico eliminado correctamente.";
+        await AlertService.SuccessAsync(
+            "Médico eliminado",
+            "El médico se eliminó correctamente.");
+
         await CargarMedicosAsync();
     }
 }

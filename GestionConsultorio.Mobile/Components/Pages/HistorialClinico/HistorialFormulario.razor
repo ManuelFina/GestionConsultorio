@@ -7,6 +7,7 @@
 @inject IHistorialClinicoService HistorialClinicoService
 @inject IPacienteService PacienteService
 @inject ITurnoService TurnoService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -199,6 +200,11 @@
             .ToList() ?? new List<Turno>();
 
         Historial.TurnoId = 0;
+
+        if (!TurnosPaciente.Any())
+        {
+            MensajeError = "Este paciente no tiene turnos atendidos disponibles para registrar historial.";
+        }
     }
 
     private async Task GuardarAsync()
@@ -262,9 +268,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear el historial",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Historial creado",
+            "El historial clínico se registró correctamente.");
 
         Navigation.NavigateTo("/historiales");
     }
@@ -275,9 +288,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar el historial",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Historial actualizado",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/historiales");
     }

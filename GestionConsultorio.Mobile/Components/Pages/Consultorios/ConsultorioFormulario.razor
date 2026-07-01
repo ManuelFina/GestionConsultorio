@@ -5,6 +5,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IConsultorioService ConsultorioService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -133,9 +134,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Consultorio creado",
+            "El consultorio se registró correctamente.");
 
         Navigation.NavigateTo("/consultorios");
     }
@@ -146,9 +154,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Consultorio actualizado",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/consultorios");
     }

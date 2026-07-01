@@ -9,6 +9,7 @@
 @inject IPacienteService PacienteService
 @inject IMedicoService MedicoService
 @inject IConsultorioService ConsultorioService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -309,9 +310,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear el turno",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Turno creado",
+            "El turno se registró correctamente.");
 
         Navigation.NavigateTo("/turnos");
     }
@@ -322,9 +330,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar el turno",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Turno actualizado",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/turnos");
     }

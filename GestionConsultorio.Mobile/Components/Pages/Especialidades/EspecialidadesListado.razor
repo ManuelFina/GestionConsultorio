@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IEspecialidadService EspecialidadService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -103,7 +97,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
     private string TextoBusqueda = string.Empty;
 
     private List<Especialidad> Especialidades = new();
@@ -123,7 +116,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var resultado = await EspecialidadService.ObtenerTodosAsync();
 
@@ -151,17 +143,29 @@
     private async Task EliminarEspecialidadAsync(int id)
     {
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar especialidad",
+            "¿Seguro que querés eliminar esta especialidad?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
 
         var resultado = await EspecialidadService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync("No se pudo eliminar", resultado.Mensaje);
             return;
         }
 
-        MensajeExito = "Especialidad eliminada correctamente.";
+        await AlertService.SuccessAsync(
+            "Especialidad eliminada",
+            "La especialidad se eliminó correctamente.");
+
         await CargarEspecialidadesAsync();
     }
 }

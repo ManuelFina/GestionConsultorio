@@ -4,6 +4,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject ITurnoService TurnoService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -21,13 +22,6 @@
 {
     <div class="alert alert-error">
         @MensajeError
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(MensajeExito))
-{
-    <div class="alert alert-success">
-        @MensajeExito
     </div>
 }
 
@@ -133,7 +127,7 @@
 
                                     <div>
                                         <span>Motivo</span>
-                                        <strong>@turno.MotivoConsulta</strong>
+                                        <strong>@MostrarDato(turno.MotivoConsulta)</strong>
                                     </div>
                                 </div>
 
@@ -170,7 +164,6 @@
 @code {
     private bool Cargando = true;
     private string MensajeError = string.Empty;
-    private string MensajeExito = string.Empty;
 
     private DateTime FechaSeleccionada = DateTime.Today;
     private List<Turno> Turnos = new();
@@ -196,7 +189,6 @@
     {
         Cargando = true;
         MensajeError = string.Empty;
-        MensajeExito = string.Empty;
 
         var fecha = DateOnly.FromDateTime(FechaSeleccionada);
         var resultado = await TurnoService.ObtenerPorFechaAsync(fecha);
@@ -215,39 +207,90 @@
     private async Task ConfirmarAsync(int id)
     {
         var resultado = await TurnoService.ConfirmarAsync(id);
-        await ProcesarAccionAsync(resultado, "Turno confirmado correctamente.");
+
+        await ProcesarAccionAsync(
+            resultado,
+            "Turno confirmado",
+            "El turno fue confirmado correctamente.");
     }
 
     private async Task AtenderAsync(int id)
     {
+        var confirmado = await AlertService.ConfirmAsync(
+            "Marcar como atendido",
+            "¿Seguro que querés marcar este turno como atendido?",
+            "Sí, atender");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
         var resultado = await TurnoService.AtenderAsync(id);
-        await ProcesarAccionAsync(resultado, "Turno marcado como atendido.");
+
+        await ProcesarAccionAsync(
+            resultado,
+            "Turno atendido",
+            "El turno fue marcado como atendido.");
     }
 
     private async Task MarcarAusenteAsync(int id)
     {
+        var confirmado = await AlertService.ConfirmAsync(
+            "Marcar ausente",
+            "¿Seguro que querés marcar al paciente como ausente?",
+            "Sí, marcar ausente");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
         var resultado = await TurnoService.MarcarAusenteAsync(id);
-        await ProcesarAccionAsync(resultado, "Turno marcado como ausente.");
+
+        await ProcesarAccionAsync(
+            resultado,
+            "Paciente ausente",
+            "El turno fue marcado como ausente.");
     }
 
     private async Task CancelarAsync(int id)
     {
-        var resultado = await TurnoService.CancelarAsync(id);
-        await ProcesarAccionAsync(resultado, "Turno cancelado correctamente.");
-    }
+        var confirmado = await AlertService.ConfirmAsync(
+            "Cancelar turno",
+            "¿Seguro que querés cancelar este turno?",
+            "Sí, cancelar");
 
-    private async Task ProcesarAccionAsync(GestionConsultorio.Shared.Responses.ApiResponse<bool> resultado, string mensajeExito)
-    {
-        MensajeError = string.Empty;
-        MensajeExito = string.Empty;
-
-        if (!resultado.Exitoso)
+        if (!confirmado)
         {
-            MensajeError = resultado.Mensaje;
             return;
         }
 
-        MensajeExito = mensajeExito;
+        var resultado = await TurnoService.CancelarAsync(id);
+
+        await ProcesarAccionAsync(
+            resultado,
+            "Turno cancelado",
+            "El turno fue cancelado correctamente.");
+    }
+
+    private async Task ProcesarAccionAsync(
+        GestionConsultorio.Shared.Responses.ApiResponse<bool> resultado,
+        string tituloExito,
+        string mensajeExito)
+    {
+        MensajeError = string.Empty;
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo completar la acción",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(tituloExito, mensajeExito);
         await CargarAgendaAsync();
     }
 
@@ -259,6 +302,11 @@
     private void EditarTurno(int id)
     {
         Navigation.NavigateTo($"/turnos/editar/{id}");
+    }
+
+    private static string MostrarDato(string? valor)
+    {
+        return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
     }
 
     private static string ObtenerClaseEstado(string estado)

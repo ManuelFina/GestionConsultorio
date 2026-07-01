@@ -5,6 +5,7 @@
 @using GestionConsultorio.Shared.Models
 
 @inject IPacienteService PacienteService
+@inject IAlertService AlertService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -163,6 +164,12 @@
         Guardando = true;
         MensajeError = string.Empty;
 
+        if (!ValidarFormulario())
+        {
+            Guardando = false;
+            return;
+        }
+
         if (EsEdicion)
         {
             await ActualizarPacienteAsync();
@@ -175,15 +182,57 @@
         Guardando = false;
     }
 
+    private bool ValidarFormulario()
+    {
+        if (string.IsNullOrWhiteSpace(Paciente.NombreCompleto))
+        {
+            MensajeError = "Ingresá el nombre completo del paciente.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Paciente.Dni))
+        {
+            MensajeError = "Ingresá el DNI del paciente.";
+            return false;
+        }
+
+        if (Paciente.FechaNacimiento > DateTime.Today)
+        {
+            MensajeError = "La fecha de nacimiento no puede ser futura.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Paciente.Telefono))
+        {
+            MensajeError = "Ingresá el teléfono del paciente.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Paciente.Email))
+        {
+            MensajeError = "Ingresá el email del paciente.";
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task CrearPacienteAsync()
     {
         var resultado = await PacienteService.CrearAsync(Paciente);
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo crear",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Paciente creado",
+            "El paciente se registró correctamente.");
 
         Navigation.NavigateTo("/pacientes");
     }
@@ -194,9 +243,16 @@
 
         if (!resultado.Exitoso)
         {
-            MensajeError = resultado.Mensaje;
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar",
+                resultado.Mensaje);
+
             return;
         }
+
+        await AlertService.SuccessAsync(
+            "Paciente actualizado",
+            "Los cambios se guardaron correctamente.");
 
         Navigation.NavigateTo("/pacientes");
     }
