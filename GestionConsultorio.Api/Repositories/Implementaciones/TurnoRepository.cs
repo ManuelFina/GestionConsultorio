@@ -50,24 +50,14 @@ public class TurnoRepository(AppDbContext context) : Repository<Turno>(context),
         int consultorioId,
         DateOnly fecha,
         TimeOnly horaInicio,
-        TimeOnly horaFin)
+        TimeOnly horaFin,
+        int? turnoIdExcluir = null)
     {
-        var estadosQueBloquean = new[]
-        {
-            EstadoTurno.Pendiente,
-            EstadoTurno.Confirmado,
-            EstadoTurno.Reprogramado
-        };
-
         return await _context.Turnos.AnyAsync(t =>
+            (!turnoIdExcluir.HasValue || t.Id != turnoIdExcluir.Value) &&
             t.Fecha == fecha &&
-            estadosQueBloquean.Contains(t.Estado) &&
-            (
-                t.MedicoId == medicoId ||
-                t.ConsultorioId == consultorioId
-            ) &&
-            horaInicio < t.HoraFin &&
-            horaFin > t.HoraInicio
-        );
+            (t.MedicoId == medicoId || t.ConsultorioId == consultorioId) &&
+            t.HoraInicio < horaFin &&
+            horaInicio < t.HoraFin);
     }
 }

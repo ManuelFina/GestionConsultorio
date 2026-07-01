@@ -66,7 +66,7 @@ public class TurnoService(
         if (turnoExistente is null)
             return ResultadoOperacion<Turno>.Error("Turno no encontrado.");
 
-        var validacion = await ValidarTurnoAsync(turno);
+        var validacion = await ValidarTurnoAsync(turno, id);
 
         if (!validacion.Exitoso)
             return ResultadoOperacion<Turno>.Error(validacion.Mensaje);
@@ -116,7 +116,7 @@ public class TurnoService(
         return ResultadoOperacion<bool>.Ok(true);
     }
 
-    private async Task<ResultadoOperacion<bool>> ValidarTurnoAsync(Turno turno)
+    private async Task<ResultadoOperacion<bool>> ValidarTurnoAsync(Turno turno, int? turnoIdExcluir = null)
     {
         if (turno.HoraInicio >= turno.HoraFin)
             return ResultadoOperacion<bool>.Error("La hora de inicio debe ser menor que la hora de fin.");
@@ -141,7 +141,8 @@ public class TurnoService(
             turno.ConsultorioId,
             turno.Fecha,
             turno.HoraInicio,
-            turno.HoraFin
+            turno.HoraFin,
+            turnoIdExcluir
         );
 
         if (existeSuperposicion)
@@ -149,7 +150,6 @@ public class TurnoService(
 
         return ResultadoOperacion<bool>.Ok(true);
     }
-
     private static ResultadoOperacion<bool> ValidarCambioEstado(Turno turno, EstadoTurno nuevoEstado)
     {
         if (turno.Estado == EstadoTurno.Cancelado && nuevoEstado == EstadoTurno.Confirmado)

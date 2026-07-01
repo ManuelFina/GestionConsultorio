@@ -3,14 +3,9 @@ using Microsoft.JSInterop;
 
 namespace GestionConsultorio.Mobile.Services.Implementaciones;
 
-public class AlertService : IAlertService
+public class AlertService(IJSRuntime jsRuntime) : IAlertService
 {
-    private readonly IJSRuntime _jsRuntime;
-
-    public AlertService(IJSRuntime jsRuntime)
-    {
-        _jsRuntime = jsRuntime;
-    }
+    private readonly IJSRuntime _jsRuntime = jsRuntime;
 
     public async Task SuccessAsync(string title, string text)
     {

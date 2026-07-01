@@ -13,6 +13,6 @@ public interface ITurnoRepository : IRepository<Turno>
         int consultorioId,
         DateOnly fecha,
         TimeOnly horaInicio,
-        TimeOnly horaFin
-    );
+        TimeOnly horaFin,
+        int? turnoIdExcluir = null);
 }
