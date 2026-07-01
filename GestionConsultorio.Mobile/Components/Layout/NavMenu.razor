@@ -24,42 +24,66 @@
                 <span>Dashboard</span>
             </NavLink>
 
-            <NavLink class="nav-link" href="/agenda">
-                <span class="nav-link-icon">📅</span>
-                <span>Agenda</span>
-            </NavLink>
+            @if (PuedeVerAgenda)
+            {
+                <NavLink class="nav-link" href="/agenda">
+                    <span class="nav-link-icon">📅</span>
+                    <span>Agenda</span>
+                </NavLink>
+            }
 
-            <NavLink class="nav-link" href="/turnos">
-                <span class="nav-link-icon">🕒</span>
-                <span>Turnos</span>
-            </NavLink>
+            @if (PuedeVerTurnos)
+            {
+                <NavLink class="nav-link" href="/turnos">
+                    <span class="nav-link-icon">🕒</span>
+                    <span>Turnos</span>
+                </NavLink>
+            }
 
-            <div class="nav-section-title">Gestión</div>
+            @if (PuedeVerGestion)
+            {
+                <div class="nav-section-title">Gestión</div>
+            }
 
-            <NavLink class="nav-link" href="/pacientes">
-                <span class="nav-link-icon">👥</span>
-                <span>Pacientes</span>
-            </NavLink>
+            @if (PuedeVerPacientes)
+            {
+                <NavLink class="nav-link" href="/pacientes">
+                    <span class="nav-link-icon">👥</span>
+                    <span>Pacientes</span>
+                </NavLink>
+            }
 
-            <NavLink class="nav-link" href="/medicos">
-                <span class="nav-link-icon">👨‍⚕️</span>
-                <span>Médicos</span>
-            </NavLink>
+            @if (PuedeVerMedicos)
+            {
+                <NavLink class="nav-link" href="/medicos">
+                    <span class="nav-link-icon">👨‍⚕️</span>
+                    <span>Médicos</span>
+                </NavLink>
+            }
 
-            <NavLink class="nav-link" href="/especialidades">
-                <span class="nav-link-icon">🏥</span>
-                <span>Especialidades</span>
-            </NavLink>
+            @if (PuedeVerEspecialidades)
+            {
+                <NavLink class="nav-link" href="/especialidades">
+                    <span class="nav-link-icon">🏥</span>
+                    <span>Especialidades</span>
+                </NavLink>
+            }
 
-            <NavLink class="nav-link" href="/consultorios">
-                <span class="nav-link-icon">🚪</span>
-                <span>Consultorios</span>
-            </NavLink>
+            @if (PuedeVerConsultorios)
+            {
+                <NavLink class="nav-link" href="/consultorios">
+                    <span class="nav-link-icon">🚪</span>
+                    <span>Consultorios</span>
+                </NavLink>
+            }
 
-            <NavLink class="nav-link" href="/historiales">
-                <span class="nav-link-icon">📋</span>
-                <span>Historial clínico</span>
-            </NavLink>
+            @if (PuedeVerHistoriales)
+            {
+                <NavLink class="nav-link" href="/historiales">
+                    <span class="nav-link-icon">📋</span>
+                    <span>Historial clínico</span>
+                </NavLink>
+            }
         </nav>
     </div>
 
@@ -86,6 +110,38 @@
     private string NombreUsuario = "Usuario";
     private string RolUsuario = "Recepcionista";
     private string InicialUsuario = "U";
+
+    private bool EsAdministrador => RolUsuario == "Administrador";
+    private bool EsRecepcionista => RolUsuario == "Recepcionista";
+    private bool EsMedico => RolUsuario == "Medico";
+
+    private bool PuedeVerAgenda =>
+        EsAdministrador || EsRecepcionista || EsMedico;
+
+    private bool PuedeVerTurnos =>
+        EsAdministrador || EsRecepcionista;
+
+    private bool PuedeVerPacientes =>
+        EsAdministrador || EsRecepcionista;
+
+    private bool PuedeVerMedicos =>
+        EsAdministrador;
+
+    private bool PuedeVerEspecialidades =>
+        EsAdministrador;
+
+    private bool PuedeVerConsultorios =>
+        EsAdministrador;
+
+    private bool PuedeVerHistoriales =>
+        EsAdministrador || EsMedico;
+
+    private bool PuedeVerGestion =>
+        PuedeVerPacientes ||
+        PuedeVerMedicos ||
+        PuedeVerEspecialidades ||
+        PuedeVerConsultorios ||
+        PuedeVerHistoriales;
 
     protected override void OnInitialized()
     {
