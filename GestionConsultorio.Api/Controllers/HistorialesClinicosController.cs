@@ -1,9 +1,11 @@
 ﻿using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
+[Authorize(Roles = "Administrador,Medico")]
 [ApiController]
 [Route("api/[controller]")]
 public class HistorialesClinicosController(IHistorialClinicoService historialClinicoService) : ControllerBase

@@ -1,9 +1,11 @@
 ﻿using GestionConsultorio.Api.Repositories.Interfaces;
 using GestionConsultorio.Shared.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
+[Authorize(Roles = "Administrador,Recepcionista")]
 [ApiController]
 [Route("api/[controller]")]
 public class PacientesController(IPacienteRepository pacienteRepository) : ControllerBase

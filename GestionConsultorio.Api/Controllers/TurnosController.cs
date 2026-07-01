@@ -1,16 +1,19 @@
 ﻿using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Enums;
 using GestionConsultorio.Shared.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TurnosController(ITurnoService turnoService) : ControllerBase
 {
     private readonly ITurnoService _turnoService = turnoService;
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Turno>>> ObtenerTodos()
     {
@@ -18,6 +21,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return Ok(turnos);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Turno>> ObtenerPorId(int id)
     {
@@ -29,6 +33,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return Ok(turno);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("fecha/{fecha}")]
     public async Task<ActionResult<IEnumerable<Turno>>> ObtenerPorFecha(DateOnly fecha)
     {
@@ -36,6 +41,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return Ok(turnos);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("medico/{medicoId:int}")]
     public async Task<ActionResult<IEnumerable<Turno>>> ObtenerPorMedico(int medicoId)
     {
@@ -43,6 +49,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return Ok(turnos);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("paciente/{pacienteId:int}")]
     public async Task<ActionResult<IEnumerable<Turno>>> ObtenerPorPaciente(int pacienteId)
     {
@@ -50,6 +57,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return Ok(turnos);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPost]
     public async Task<ActionResult<Turno>> Crear(Turno turno)
     {
@@ -65,6 +73,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         );
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Turno turno)
     {
@@ -76,6 +85,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPatch("{id:int}/confirmar")]
     public async Task<IActionResult> Confirmar(int id)
     {
@@ -87,6 +97,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPatch("{id:int}/cancelar")]
     public async Task<IActionResult> Cancelar(int id)
     {
@@ -98,6 +109,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpPatch("{id:int}/atender")]
     public async Task<IActionResult> Atender(int id)
     {
@@ -109,6 +121,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpPatch("{id:int}/ausente")]
     public async Task<IActionResult> MarcarAusente(int id)
     {
@@ -120,6 +133,7 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
