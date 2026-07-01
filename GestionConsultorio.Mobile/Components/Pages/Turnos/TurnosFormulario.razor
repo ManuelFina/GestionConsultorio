@@ -8,6 +8,7 @@
 @inject ITurnoService TurnoService
 @inject IPacienteService PacienteService
 @inject IMedicoService MedicoService
+@inject IEspecialidadService EspecialidadService
 @inject IConsultorioService ConsultorioService
 @inject IAlertService AlertService
 @inject NavigationManager Navigation
@@ -57,14 +58,34 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Médico</label>
-                        <InputSelect class="form-control" @bind-Value="Turno.MedicoId">
-                            <option value="0">Seleccionar médico</option>
+                        <label class="form-label">Especialidad</label>
+                        <select class="form-control"
+                                value="@EspecialidadSeleccionadaId"
+                                @onchange="OnEspecialidadChanged">
+                            <option value="0">Seleccionar especialidad</option>
 
-                            @foreach (var medico in Medicos)
+                            @foreach (var especialidad in Especialidades)
+                            {
+                                <option value="@especialidad.Id">
+                                    @especialidad.Nombre
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Médico</label>
+                        <InputSelect class="form-control"
+                                     @bind-Value="Turno.MedicoId"
+                                     disabled="@(EspecialidadSeleccionadaId == 0 || !MedicosFiltrados.Any())">
+                            <option value="0">
+                                @TextoSelectorMedico
+                            </option>
+
+                            @foreach (var medico in MedicosFiltrados)
                             {
                                 <option value="@medico.Id">
-                                    @medico.NombreCompleto - @(medico.Especialidad?.Nombre ?? "Sin especialidad")
+                                    @medico.NombreCompleto
                                 </option>
                             }
                         </InputSelect>
@@ -151,8 +172,11 @@
     };
 
     private List<Paciente> Pacientes = new();
-    private List<Medico> Medicos = new();
+    private List<Especialidad> Especialidades = new();
+    private List<Medico> MedicosFiltrados = new();
     private List<Consultorio> Consultorios = new();
+
+    private int EspecialidadSeleccionadaId;
 
     private DateTime FechaTurno = DateTime.Today;
     private string HoraInicioTexto = "09:00";
@@ -170,6 +194,20 @@
         ? "Actualizá los datos del turno seleccionado"
         : "Registrá un nuevo turno en la agenda";
 
+    private string TextoSelectorMedico
+    {
+        get
+        {
+            if (EspecialidadSeleccionadaId == 0)
+                return "Primero seleccioná una especialidad";
+
+            if (!MedicosFiltrados.Any())
+                return "No hay médicos para esta especialidad";
+
+            return "Seleccionar médico";
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await CargarDatosAsync();
@@ -181,7 +219,7 @@
         MensajeError = string.Empty;
 
         var pacientesResponse = await PacienteService.ObtenerTodosAsync();
-        var medicosResponse = await MedicoService.ObtenerTodosAsync();
+        var especialidadesResponse = await EspecialidadService.ObtenerTodosAsync();
         var consultoriosResponse = await ConsultorioService.ObtenerTodosAsync();
 
         if (!pacientesResponse.Exitoso)
@@ -191,9 +229,9 @@
             return;
         }
 
-        if (!medicosResponse.Exitoso)
+        if (!especialidadesResponse.Exitoso)
         {
-            MensajeError = medicosResponse.Mensaje;
+            MensajeError = especialidadesResponse.Mensaje;
             Cargando = false;
             return;
         }
@@ -206,28 +244,105 @@
         }
 
         Pacientes = pacientesResponse.Data ?? new List<Paciente>();
-        Medicos = medicosResponse.Data ?? new List<Medico>();
+        Especialidades = especialidadesResponse.Data ?? new List<Especialidad>();
         Consultorios = consultoriosResponse.Data ?? new List<Consultorio>();
+        MedicosFiltrados = new List<Medico>();
 
         if (EsEdicion)
         {
-            var turnoResponse = await TurnoService.ObtenerPorIdAsync(TurnoId!.Value);
-
-            if (!turnoResponse.Exitoso)
-            {
-                MensajeError = turnoResponse.Mensaje;
-                Cargando = false;
-                return;
-            }
-
-            Turno = turnoResponse.Data ?? new Turno();
-
-            FechaTurno = Turno.Fecha.ToDateTime(TimeOnly.MinValue);
-            HoraInicioTexto = Turno.HoraInicio.ToString("HH:mm");
-            HoraFinTexto = Turno.HoraFin.ToString("HH:mm");
+            await CargarTurnoParaEdicionAsync();
         }
 
         Cargando = false;
+    }
+
+    private async Task CargarTurnoParaEdicionAsync()
+    {
+        var turnoResponse = await TurnoService.ObtenerPorIdAsync(TurnoId!.Value);
+
+        if (!turnoResponse.Exitoso)
+        {
+            MensajeError = turnoResponse.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Turno = turnoResponse.Data ?? new Turno();
+
+        FechaTurno = Turno.Fecha.ToDateTime(TimeOnly.MinValue);
+        HoraInicioTexto = Turno.HoraInicio.ToString("HH:mm");
+        HoraFinTexto = Turno.HoraFin.ToString("HH:mm");
+
+        if (Turno.Medico?.EspecialidadId > 0)
+        {
+            EspecialidadSeleccionadaId = Turno.Medico.EspecialidadId;
+        }
+        else if (Turno.Medico?.Especialidad?.Id > 0)
+        {
+            EspecialidadSeleccionadaId = Turno.Medico.Especialidad.Id;
+        }
+
+        if (EspecialidadSeleccionadaId > 0)
+        {
+            await CargarMedicosPorEspecialidadAsync(
+                EspecialidadSeleccionadaId,
+                mantenerMedicoSeleccionado: true);
+        }
+    }
+
+    private async Task OnEspecialidadChanged(ChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+
+        if (!int.TryParse(e.Value?.ToString(), out var especialidadId) || especialidadId == 0)
+        {
+            EspecialidadSeleccionadaId = 0;
+            Turno.MedicoId = 0;
+            MedicosFiltrados = new List<Medico>();
+            return;
+        }
+
+        EspecialidadSeleccionadaId = especialidadId;
+        Turno.MedicoId = 0;
+
+        await CargarMedicosPorEspecialidadAsync(especialidadId);
+    }
+
+    private async Task CargarMedicosPorEspecialidadAsync(
+        int especialidadId,
+        bool mantenerMedicoSeleccionado = false)
+    {
+        var medicoIdActual = Turno.MedicoId;
+
+        var medicosResponse = await MedicoService.ObtenerPorEspecialidadAsync(especialidadId);
+
+        if (!medicosResponse.Exitoso)
+        {
+            MensajeError = medicosResponse.Mensaje;
+            MedicosFiltrados = new List<Medico>();
+            Turno.MedicoId = 0;
+            return;
+        }
+
+        MedicosFiltrados = medicosResponse.Data?
+            .OrderBy(m => m.NombreCompleto)
+            .ToList() ?? new List<Medico>();
+
+        if (mantenerMedicoSeleccionado && MedicosFiltrados.Any(m => m.Id == medicoIdActual))
+        {
+            Turno.MedicoId = medicoIdActual;
+            return;
+        }
+
+        if (!mantenerMedicoSeleccionado)
+        {
+            Turno.MedicoId = 0;
+        }
+
+        if (!MedicosFiltrados.Any())
+        {
+            MensajeError = "No hay médicos registrados para la especialidad seleccionada.";
+        }
     }
 
     private async Task GuardarAsync()
@@ -262,6 +377,12 @@
         if (Turno.PacienteId == 0)
         {
             MensajeError = "Seleccioná un paciente.";
+            return false;
+        }
+
+        if (EspecialidadSeleccionadaId == 0)
+        {
+            MensajeError = "Seleccioná una especialidad.";
             return false;
         }
 
