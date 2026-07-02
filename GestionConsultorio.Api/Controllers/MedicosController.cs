@@ -1,21 +1,25 @@
 ﻿using GestionConsultorio.Api.Repositories.Interfaces;
 using GestionConsultorio.Api.Services.Interfaces;
+using GestionConsultorio.Shared.DTOs.Medicos;
 using GestionConsultorio.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
-[Authorize(Roles = "Administrador")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class MedicosController(
     IMedicoRepository medicoRepository,
-    IValidacionEliminacionService validacionEliminacionService) : ControllerBase
+    IValidacionEliminacionService validacionEliminacionService,
+    IMedicoService medicoService) : ControllerBase
 {
     private readonly IMedicoRepository _medicoRepository = medicoRepository;
     private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
+    private readonly IMedicoService _medicoService = medicoService;
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Medico>>> ObtenerTodos()
     {
@@ -23,6 +27,7 @@ public class MedicosController(
         return Ok(medicos);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Medico>> ObtenerPorId(int id)
     {
@@ -34,6 +39,7 @@ public class MedicosController(
         return Ok(medico);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("matricula/{matricula}")]
     public async Task<ActionResult<Medico>> ObtenerPorMatricula(string matricula)
     {
@@ -45,6 +51,7 @@ public class MedicosController(
         return Ok(medico);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("especialidad/{especialidadId:int}")]
     public async Task<ActionResult<IEnumerable<Medico>>> ObtenerPorEspecialidad(int especialidadId)
     {
@@ -52,23 +59,23 @@ public class MedicosController(
         return Ok(medicos);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
-    public async Task<ActionResult<Medico>> Crear(Medico medico)
+    public async Task<ActionResult<Medico>> Registrar(RegistroMedicoDto dto)
     {
-        var existeMatricula = await _medicoRepository.ExisteMatriculaAsync(medico.Matricula);
+        var resultado = await _medicoService.RegistrarAsync(dto);
 
-        if (existeMatricula)
-            return BadRequest("Ya existe un médico registrado con esa matrícula.");
-
-        await _medicoRepository.CrearAsync(medico);
+        if (!resultado.Exitoso)
+            return BadRequest(resultado.Mensaje);
 
         return CreatedAtAction(
             nameof(ObtenerPorId),
-            new { id = medico.Id },
-            medico
+            new { id = resultado.Data!.Id },
+            resultado.Data
         );
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Medico medico)
     {
@@ -96,6 +103,7 @@ public class MedicosController(
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {

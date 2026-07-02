@@ -1,9 +1,10 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using GestionConsultorio.Mobile.Helpers;
+﻿using GestionConsultorio.Mobile.Helpers;
 using GestionConsultorio.Mobile.Services.Interfaces;
+using GestionConsultorio.Shared.DTOs.Medicos;
 using GestionConsultorio.Shared.Models;
 using GestionConsultorio.Shared.Responses;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace GestionConsultorio.Mobile.Services.Implementaciones;
 
@@ -113,11 +114,11 @@ public class MedicoService(HttpClient httpClient) : IMedicoService
         }
     }
 
-    public async Task<ApiResponse<Medico>> CrearAsync(Medico medico)
+    public async Task<ApiResponse<Medico>> RegistrarAsync(RegistroMedicoDto dto)
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync(ApiRoutes.Medicos, medico);
+            var response = await _httpClient.PostAsJsonAsync(ApiRoutes.Medicos, dto);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -128,7 +129,7 @@ public class MedicoService(HttpClient httpClient) : IMedicoService
             var medicoCreado = await response.Content.ReadFromJsonAsync<Medico>();
 
             if (medicoCreado is null)
-                return ApiResponse<Medico>.Error("El médico fue creado, pero no se recibió la información.");
+                return ApiResponse<Medico>.Error("El médico fue registrado, pero no se recibió la información.");
 
             return ApiResponse<Medico>.Ok(medicoCreado);
         }
@@ -138,7 +139,7 @@ public class MedicoService(HttpClient httpClient) : IMedicoService
         }
         catch (Exception)
         {
-            return ApiResponse<Medico>.Error("Ocurrió un error inesperado al crear el médico.");
+            return ApiResponse<Medico>.Error("Ocurrió un error inesperado al registrar el médico.");
         }
     }
 

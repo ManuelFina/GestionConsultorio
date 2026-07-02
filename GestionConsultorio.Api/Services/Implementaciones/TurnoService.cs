@@ -1,8 +1,10 @@
-﻿using GestionConsultorio.Api.Repositories.Interfaces;
+﻿using System.Security.Claims;
+using GestionConsultorio.Api.Repositories.Interfaces;
 using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Enums;
 using GestionConsultorio.Shared.Models;
 using GestionConsultorio.Shared.Responses;
+using Microsoft.AspNetCore.Http;
 
 namespace GestionConsultorio.Api.Services.Implementaciones;
 
@@ -10,36 +12,103 @@ public class TurnoService(
     ITurnoRepository turnoRepository,
     IPacienteRepository pacienteRepository,
     IMedicoRepository medicoRepository,
-    IRepository<Consultorio> consultorioRepository) : ITurnoService
+    IRepository<Consultorio> consultorioRepository,
+    IHttpContextAccessor httpContextAccessor) : ITurnoService
 {
     private readonly ITurnoRepository _turnoRepository = turnoRepository;
     private readonly IPacienteRepository _pacienteRepository = pacienteRepository;
     private readonly IMedicoRepository _medicoRepository = medicoRepository;
     private readonly IRepository<Consultorio> _consultorioRepository = consultorioRepository;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public async Task<IEnumerable<Turno>> ObtenerTodosAsync()
     {
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return [];
+
+            return await _turnoRepository.ObtenerPorMedicoAsync(medico.Id);
+        }
+
         return await _turnoRepository.ObtenerTodosAsync();
     }
 
     public async Task<Turno?> ObtenerPorIdAsync(int id)
     {
-        return await _turnoRepository.ObtenerPorIdAsync(id);
+        var turno = await _turnoRepository.ObtenerPorIdAsync(id);
+
+        if (turno is null)
+            return null;
+
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return null;
+
+            if (turno.MedicoId != medico.Id)
+                return null;
+        }
+
+        return turno;
     }
 
     public async Task<IEnumerable<Turno>> ObtenerPorFechaAsync(DateOnly fecha)
     {
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return [];
+
+            var turnosDelMedico = await _turnoRepository.ObtenerPorMedicoAsync(medico.Id);
+
+            return turnosDelMedico
+                .Where(t => t.Fecha == fecha)
+                .ToList();
+        }
+
         return await _turnoRepository.ObtenerPorFechaAsync(fecha);
     }
 
     public async Task<IEnumerable<Turno>> ObtenerPorMedicoAsync(int medicoId)
     {
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return [];
+
+            if (medico.Id != medicoId)
+                return [];
+        }
+
         return await _turnoRepository.ObtenerPorMedicoAsync(medicoId);
     }
 
     public async Task<IEnumerable<Turno>> ObtenerPorPacienteAsync(int pacienteId)
     {
-        return await _turnoRepository.ObtenerPorPacienteAsync(pacienteId);
+        var turnos = await _turnoRepository.ObtenerPorPacienteAsync(pacienteId);
+
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return [];
+
+            return turnos
+                .Where(t => t.MedicoId == medico.Id)
+                .ToList();
+        }
+
+        return turnos;
     }
 
     public async Task<ResultadoOperacion<Turno>> CrearAsync(Turno turno)
@@ -91,6 +160,17 @@ public class TurnoService(
 
         if (turno is null)
             return ResultadoOperacion<Turno>.Error("Turno no encontrado.");
+
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return ResultadoOperacion<Turno>.Error("No se encontró el médico asociado al usuario logueado.");
+
+            if (turno.MedicoId != medico.Id)
+                return ResultadoOperacion<Turno>.Error("No tenés permisos para modificar este turno.");
+        }
 
         var validacion = ValidarCambioEstado(turno, nuevoEstado);
 
@@ -150,6 +230,7 @@ public class TurnoService(
 
         return ResultadoOperacion<bool>.Ok(true);
     }
+
     private static ResultadoOperacion<bool> ValidarCambioEstado(Turno turno, EstadoTurno nuevoEstado)
     {
         if (turno.Estado == EstadoTurno.Cancelado && nuevoEstado == EstadoTurno.Confirmado)
@@ -165,5 +246,29 @@ public class TurnoService(
             return ResultadoOperacion<bool>.Error("No se puede marcar como ausente un turno ya atendido.");
 
         return ResultadoOperacion<bool>.Ok(true);
+    }
+
+    private ClaimsPrincipal UsuarioActual =>
+        _httpContextAccessor.HttpContext?.User ?? new ClaimsPrincipal();
+
+    private bool UsuarioEsMedico()
+    {
+        return UsuarioActual.IsInRole("Medico");
+    }
+
+    private string? ObtenerEmailUsuario()
+    {
+        return UsuarioActual.FindFirstValue(ClaimTypes.Email)
+            ?? UsuarioActual.FindFirstValue("email");
+    }
+
+    private async Task<Medico?> ObtenerMedicoLogueadoAsync()
+    {
+        var email = ObtenerEmailUsuario();
+
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
+        return await _medicoRepository.ObtenerPorEmailAsync(email);
     }
 }

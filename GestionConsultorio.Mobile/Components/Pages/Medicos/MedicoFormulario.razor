@@ -2,6 +2,7 @@
 @page "/medicos/editar/{MedicoId:int}"
 
 @using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.DTOs.Medicos
 @using GestionConsultorio.Shared.Models
 
 @inject IMedicoService MedicoService
@@ -81,6 +82,17 @@
                                    @bind-Value="Medico.Email"
                                    placeholder="Ej: medico@email.com" />
                     </div>
+
+                    @if (!EsEdicion)
+                    {
+                        <div>
+                            <label class="form-label">Contraseña</label>
+                            <InputText type="password"
+                                       class="form-control"
+                                       @bind-Value="Password"
+                                       placeholder="Mínimo 6 caracteres" />
+                        </div>
+                    }
                 </div>
 
                 <div class="form-actions">
@@ -89,7 +101,7 @@
                     </button>
 
                     <button type="submit" class="btn btn-primary" disabled="@Guardando">
-                        @(Guardando ? "Guardando..." : "Guardar médico")
+                        @(Guardando ? "Guardando..." : TextoBotonGuardar)
                     </button>
                 </div>
             </EditForm>
@@ -104,6 +116,8 @@
     private Medico Medico = new();
     private List<Especialidad> Especialidades = new();
 
+    private string Password = string.Empty;
+
     private bool Cargando = true;
     private bool Guardando;
     private string MensajeError = string.Empty;
@@ -114,7 +128,9 @@
 
     private string SubtituloPagina => EsEdicion
         ? "Actualizá los datos del profesional seleccionado"
-        : "Registrá un nuevo profesional médico";
+        : "Registrá un nuevo profesional médico y creá su usuario de acceso";
+
+    private string TextoBotonGuardar => EsEdicion ? "Guardar cambios" : "Registrar médico";
 
     protected override async Task OnInitializedAsync()
     {
@@ -171,7 +187,7 @@
         }
         else
         {
-            await CrearMedicoAsync();
+            await RegistrarMedicoAsync();
         }
 
         Guardando = false;
@@ -209,25 +225,47 @@
             return false;
         }
 
+        if (!EsEdicion && string.IsNullOrWhiteSpace(Password))
+        {
+            MensajeError = "Ingresá una contraseña para el usuario del médico.";
+            return false;
+        }
+
+        if (!EsEdicion && Password.Length < 6)
+        {
+            MensajeError = "La contraseña debe tener al menos 6 caracteres.";
+            return false;
+        }
+
         return true;
     }
 
-    private async Task CrearMedicoAsync()
+    private async Task RegistrarMedicoAsync()
     {
-        var resultado = await MedicoService.CrearAsync(Medico);
+        var dto = new RegistroMedicoDto
+        {
+            NombreCompleto = Medico.NombreCompleto,
+            Matricula = Medico.Matricula,
+            Telefono = Medico.Telefono,
+            Email = Medico.Email,
+            EspecialidadId = Medico.EspecialidadId,
+            Password = Password
+        };
+
+        var resultado = await MedicoService.RegistrarAsync(dto);
 
         if (!resultado.Exitoso)
         {
             await AlertService.ErrorAsync(
-                "No se pudo crear",
+                "No se pudo registrar",
                 resultado.Mensaje);
 
             return;
         }
 
         await AlertService.SuccessAsync(
-            "Médico creado",
-            "El médico se registró correctamente.");
+            "Médico registrado",
+            "El médico y su usuario se crearon correctamente.");
 
         Navigation.NavigateTo("/medicos");
     }

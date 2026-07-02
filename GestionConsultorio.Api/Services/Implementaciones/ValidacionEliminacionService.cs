@@ -37,17 +37,6 @@ public class ValidacionEliminacionService(AppDbContext context) : IValidacionEli
             );
         }
 
-        var tieneHistoriales = await _context.HistorialesClinicos
-            .AnyAsync(h => h.MedicoId == medicoId);
-
-        if (tieneHistoriales)
-        {
-            return new ResultadoValidacionEliminacion(
-                false,
-                "No se puede eliminar el médico porque tiene historiales clínicos asociados."
-            );
-        }
-
         return new ResultadoValidacionEliminacion(true);
     }
 

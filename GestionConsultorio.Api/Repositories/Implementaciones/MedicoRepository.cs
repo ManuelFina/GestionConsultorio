@@ -45,4 +45,10 @@ public class MedicoRepository(AppDbContext context) : Repository<Medico>(context
             .Where(m => m.EspecialidadId == especialidadId)
             .ToListAsync();
     }
+
+    public async Task<Medico?> ObtenerPorEmailAsync(string email)
+    {
+        return await MedicosConEspecialidad()
+            .FirstOrDefaultAsync(m => m.Email.ToLower() == email.ToLower());
+    }
 }
