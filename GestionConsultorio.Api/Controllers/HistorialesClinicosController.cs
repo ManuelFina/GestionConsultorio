@@ -1,17 +1,19 @@
 ﻿using GestionConsultorio.Api.Services.Interfaces;
+using GestionConsultorio.Shared.DTOs.HistorialesClinicos;
 using GestionConsultorio.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
-[Authorize(Roles = "Administrador,Medico")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class HistorialesClinicosController(IHistorialClinicoService historialClinicoService) : ControllerBase
 {
     private readonly IHistorialClinicoService _historialClinicoService = historialClinicoService;
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<HistorialClinico>>> ObtenerTodos()
     {
@@ -19,6 +21,7 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         return Ok(historiales);
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<HistorialClinico>> ObtenerPorId(int id)
     {
@@ -30,6 +33,7 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         return Ok(historial);
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpGet("paciente/{pacienteId:int}")]
     public async Task<ActionResult<IEnumerable<HistorialClinico>>> ObtenerPorPaciente(int pacienteId)
     {
@@ -37,6 +41,7 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         return Ok(historiales);
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpGet("turno/{turnoId:int}")]
     public async Task<ActionResult<HistorialClinico>> ObtenerPorTurno(int turnoId)
     {
@@ -48,6 +53,23 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         return Ok(historial);
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
+    [HttpPost("atender-turno")]
+    public async Task<ActionResult<HistorialClinico>> AtenderTurno(AtenderTurnoDto dto)
+    {
+        var resultado = await _historialClinicoService.AtenderTurnoAsync(dto);
+
+        if (!resultado.Exitoso)
+            return BadRequest(resultado.Mensaje);
+
+        return CreatedAtAction(
+            nameof(ObtenerPorId),
+            new { id = resultado.Data!.Id },
+            resultado.Data
+        );
+    }
+
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpPost]
     public async Task<ActionResult<HistorialClinico>> Crear(HistorialClinico historial)
     {
@@ -63,31 +85,33 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         );
     }
 
+    [Authorize(Roles = "Administrador,Medico")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, HistorialClinico historial)
     {
         var resultado = await _historialClinicoService.ActualizarAsync(id, historial);
 
-        if (!resultado.Exitoso)
-            return BadRequest(resultado.Mensaje);
+        if (resultado.Exitoso)
+            return NoContent();
 
-        return NoContent();
+        if (resultado.Mensaje == "Historial clínico no encontrado.")
+            return NotFound(resultado.Mensaje);
+
+        return BadRequest(resultado.Mensaje);
     }
 
     [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        var historial = await _historialClinicoService.ObtenerPorIdAsync(id);
-
-        if (historial is null)
-            return NotFound("Historial clínico no encontrado.");
-
         var resultado = await _historialClinicoService.EliminarAsync(id);
 
-        if (!resultado.Exitoso)
-            return BadRequest(resultado.Mensaje);
+        if (resultado.Exitoso)
+            return NoContent();
 
-        return NoContent();
+        if (resultado.Mensaje == "Historial clínico no encontrado.")
+            return NotFound(resultado.Mensaje);
+
+        return BadRequest(resultado.Mensaje);
     }
 }

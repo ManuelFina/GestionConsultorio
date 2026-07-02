@@ -13,11 +13,25 @@ public class HistorialClinicoRepository(AppDbContext context)
     private IQueryable<HistorialClinico> HistorialesConRelaciones()
     {
         return _context.HistorialesClinicos
+            .AsNoTracking()
             .Include(h => h.Paciente)
             .Include(h => h.Turno!)
                 .ThenInclude(t => t.Medico)
             .Include(h => h.Turno!)
                 .ThenInclude(t => t.Consultorio);
+    }
+
+    public async Task<IEnumerable<HistorialClinico>> ObtenerTodosConRelacionesAsync()
+    {
+        return await HistorialesConRelaciones()
+            .OrderByDescending(h => h.FechaRegistro)
+            .ToListAsync();
+    }
+
+    public async Task<HistorialClinico?> ObtenerPorIdConRelacionesAsync(int id)
+    {
+        return await HistorialesConRelaciones()
+            .FirstOrDefaultAsync(h => h.Id == id);
     }
 
     public async Task<IEnumerable<HistorialClinico>> ObtenerPorPacienteAsync(int pacienteId)
@@ -37,6 +51,7 @@ public class HistorialClinicoRepository(AppDbContext context)
     public async Task<bool> ExisteHistorialParaTurnoAsync(int turnoId)
     {
         return await _context.HistorialesClinicos
+            .AsNoTracking()
             .AnyAsync(h => h.TurnoId == turnoId);
     }
 }

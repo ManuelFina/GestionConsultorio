@@ -1,4 +1,5 @@
-﻿using GestionConsultorio.Shared.Models;
+﻿using GestionConsultorio.Shared.DTOs.HistorialesClinicos;
+using GestionConsultorio.Shared.Models;
 using GestionConsultorio.Shared.Responses;
 
 namespace GestionConsultorio.Api.Services.Interfaces;
@@ -13,4 +14,5 @@ public interface IHistorialClinicoService
     Task<ResultadoOperacion<HistorialClinico>> CrearAsync(HistorialClinico historial);
     Task<ResultadoOperacion<HistorialClinico>> ActualizarAsync(int id, HistorialClinico historial);
     Task<ResultadoOperacion<bool>> EliminarAsync(int id);
+    Task<ResultadoOperacion<HistorialClinico>> AtenderTurnoAsync(AtenderTurnoDto dto);
 }

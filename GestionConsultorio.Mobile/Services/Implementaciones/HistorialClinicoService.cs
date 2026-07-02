@@ -1,9 +1,10 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using GestionConsultorio.Mobile.Helpers;
+﻿using GestionConsultorio.Mobile.Helpers;
 using GestionConsultorio.Mobile.Services.Interfaces;
+using GestionConsultorio.Shared.DTOs.HistorialesClinicos;
 using GestionConsultorio.Shared.Models;
 using GestionConsultorio.Shared.Responses;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace GestionConsultorio.Mobile.Services.Implementaciones;
 
@@ -127,7 +128,37 @@ public class HistorialClinicoService(HttpClient httpClient) : IHistorialClinicoS
             return ApiResponse<HistorialClinico>.Error("Ocurrió un error inesperado al obtener el historial del turno.");
         }
     }
+    public async Task<ApiResponse<HistorialClinico>> AtenderTurnoAsync(AtenderTurnoDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                $"{ApiRoutes.HistorialesClinicos}/atender-turno",
+                dto
+            );
 
+            if (!response.IsSuccessStatusCode)
+            {
+                var mensaje = await ApiErrorHelper.ObtenerMensajeErrorAsync(response);
+                return ApiResponse<HistorialClinico>.Error(mensaje);
+            }
+
+            var historialCreado = await response.Content.ReadFromJsonAsync<HistorialClinico>();
+
+            if (historialCreado is null)
+                return ApiResponse<HistorialClinico>.Error("El turno fue atendido, pero no se recibió la información del historial clínico.");
+
+            return ApiResponse<HistorialClinico>.Ok(historialCreado);
+        }
+        catch (HttpRequestException)
+        {
+            return ApiResponse<HistorialClinico>.Error("No se pudo conectar con el servidor.");
+        }
+        catch (Exception)
+        {
+            return ApiResponse<HistorialClinico>.Error("Ocurrió un error inesperado al atender el turno.");
+        }
+    }
     public async Task<ApiResponse<HistorialClinico>> CrearAsync(HistorialClinico historial)
     {
         try

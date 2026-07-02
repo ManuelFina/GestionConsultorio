@@ -1,9 +1,12 @@
 ﻿@page "/agenda"
 
 @using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.DTOs.HistorialesClinicos
+@using GestionConsultorio.Shared.Enums
 @using GestionConsultorio.Shared.Models
 
 @inject ITurnoService TurnoService
+@inject IHistorialClinicoService HistorialClinicoService
 @inject IAlertService AlertService
 @inject NavigationManager Navigation
 
@@ -22,6 +25,64 @@
 {
     <div class="alert alert-error">
         @MensajeError
+    </div>
+}
+
+@if (TurnoEnAtencion is not null)
+{
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="card-body">
+            <div class="section-header">
+                <div>
+                    <h3>Atender turno</h3>
+                    <p>
+                        Paciente:
+                        <strong>@(TurnoEnAtencion.Paciente?.NombreCompleto ?? "Paciente sin cargar")</strong>
+                    </p>
+                </div>
+
+                <button class="btn btn-outline" @onclick="CancelarAtencion">
+                    Cerrar
+                </button>
+            </div>
+
+            <EditForm Model="AtencionDto" OnValidSubmit="GuardarAtencionAsync">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Diagnóstico</label>
+                        <InputTextArea class="form-control"
+                                       @bind-Value="AtencionDto.Diagnostico"
+                                       placeholder="Ej: Faringitis aguda" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Tratamiento</label>
+                        <InputTextArea class="form-control"
+                                       @bind-Value="AtencionDto.Tratamiento"
+                                       placeholder="Ej: Reposo, hidratación y control de fiebre" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Observaciones</label>
+                        <InputTextArea class="form-control"
+                                       @bind-Value="AtencionDto.Observaciones"
+                                       placeholder="Observaciones adicionales" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="CancelarAtencion">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@GuardandoAtencion">
+                        @(GuardandoAtencion ? "Guardando..." : "Guardar atención")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
     </div>
 }
 
@@ -104,7 +165,7 @@
                                         <span>@turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")</span>
                                     </div>
 
-                                    <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                    <span class="@ObtenerClaseEstado(turno.Estado)">
                                         @turno.Estado
                                     </span>
                                 </div>
@@ -132,25 +193,40 @@
                                 </div>
 
                                 <div class="actions agenda-actions">
-                                    <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
-                                        Confirmar
-                                    </button>
+                                    @if (PuedeConfirmar(turno))
+                                    {
+                                        <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
+                                            Confirmar
+                                        </button>
+                                    }
 
-                                    <button class="action-btn" @onclick="() => AtenderAsync(turno.Id)">
-                                        Atender
-                                    </button>
+                                    @if (PuedeAtender(turno))
+                                    {
+                                        <button class="action-btn" @onclick="() => AbrirAtencion(turno)">
+                                            Atender
+                                        </button>
+                                    }
 
-                                    <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
-                                        Ausente
-                                    </button>
+                                    @if (PuedeMarcarAusente(turno))
+                                    {
+                                        <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
+                                            Ausente
+                                        </button>
+                                    }
 
-                                    <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
-                                        Editar
-                                    </button>
+                                    @if (PuedeEditar(turno))
+                                    {
+                                        <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
+                                            Editar
+                                        </button>
+                                    }
 
-                                    <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
-                                        Cancelar
-                                    </button>
+                                    @if (PuedeCancelar(turno))
+                                    {
+                                        <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
+                                            Cancelar
+                                        </button>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -163,22 +239,26 @@
 
 @code {
     private bool Cargando = true;
+    private bool GuardandoAtencion;
     private string MensajeError = string.Empty;
 
     private DateTime FechaSeleccionada = DateTime.Today;
     private List<Turno> Turnos = new();
 
+    private Turno? TurnoEnAtencion;
+    private AtenderTurnoDto AtencionDto = new();
+
     private IEnumerable<Turno> TurnosOrdenados =>
         Turnos.OrderBy(t => t.HoraInicio);
 
     private int CantidadPendientes =>
-        Turnos.Count(t => t.Estado.ToString() == "Pendiente");
+        Turnos.Count(t => t.Estado == EstadoTurno.Pendiente);
 
     private int CantidadConfirmados =>
-        Turnos.Count(t => t.Estado.ToString() == "Confirmado");
+        Turnos.Count(t => t.Estado == EstadoTurno.Confirmado);
 
     private int CantidadAtendidos =>
-        Turnos.Count(t => t.Estado.ToString() == "Atendido");
+        Turnos.Count(t => t.Estado == EstadoTurno.Atendido);
 
     protected override async Task OnInitializedAsync()
     {
@@ -214,24 +294,51 @@
             "El turno fue confirmado correctamente.");
     }
 
-    private async Task AtenderAsync(int id)
+    private void AbrirAtencion(Turno turno)
     {
-        var confirmado = await AlertService.ConfirmAsync(
-            "Marcar como atendido",
-            "¿Seguro que querés marcar este turno como atendido?",
-            "Sí, atender");
+        MensajeError = string.Empty;
+        TurnoEnAtencion = turno;
 
-        if (!confirmado)
+        AtencionDto = new AtenderTurnoDto
         {
+            TurnoId = turno.Id
+        };
+    }
+
+    private void CancelarAtencion()
+    {
+        TurnoEnAtencion = null;
+        AtencionDto = new AtenderTurnoDto();
+        MensajeError = string.Empty;
+    }
+
+    private async Task GuardarAtencionAsync()
+    {
+        GuardandoAtencion = true;
+        MensajeError = string.Empty;
+
+        var resultado = await HistorialClinicoService.AtenderTurnoAsync(AtencionDto);
+
+        if (!resultado.Exitoso)
+        {
+            GuardandoAtencion = false;
+
+            await AlertService.ErrorAsync(
+                "No se pudo atender el turno",
+                resultado.Mensaje);
+
             return;
         }
 
-        var resultado = await TurnoService.AtenderAsync(id);
-
-        await ProcesarAccionAsync(
-            resultado,
+        await AlertService.SuccessAsync(
             "Turno atendido",
-            "El turno fue marcado como atendido.");
+            "Se registró el historial clínico correctamente.");
+
+        GuardandoAtencion = false;
+        TurnoEnAtencion = null;
+        AtencionDto = new AtenderTurnoDto();
+
+        await CargarAgendaAsync();
     }
 
     private async Task MarcarAusenteAsync(int id)
@@ -304,21 +411,50 @@
         Navigation.NavigateTo($"/turnos/editar/{id}");
     }
 
+    private static bool PuedeConfirmar(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente;
+    }
+
+    private static bool PuedeAtender(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
+    private static bool PuedeMarcarAusente(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
+    private static bool PuedeEditar(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
+    private static bool PuedeCancelar(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
     private static string MostrarDato(string? valor)
     {
         return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
     }
 
-    private static string ObtenerClaseEstado(string estado)
+    private static string ObtenerClaseEstado(EstadoTurno estado)
     {
         return estado switch
         {
-            "Confirmado" => "badge badge-success",
-            "Pendiente" => "badge badge-warning",
-            "Cancelado" => "badge badge-danger",
-            "Atendido" => "badge badge-info",
-            "Ausente" => "badge badge-danger",
-            "Reprogramado" => "badge badge-warning",
+            EstadoTurno.Confirmado => "badge badge-success",
+            EstadoTurno.Pendiente => "badge badge-warning",
+            EstadoTurno.Cancelado => "badge badge-danger",
+            EstadoTurno.Atendido => "badge badge-info",
+            EstadoTurno.Ausente => "badge badge-danger",
+            EstadoTurno.Reprogramado => "badge badge-warning",
             _ => "badge badge-info"
         };
     }
