@@ -1171,3 +1171,7 @@ button {
         width: 86vw;
     }
 }
+
+#blazor-error-ui {
+    display: none;
+}
