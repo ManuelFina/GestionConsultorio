@@ -1,5 +1,4 @@
-﻿using GestionConsultorio.Api.Repositories.Interfaces;
-using GestionConsultorio.Api.Services.Interfaces;
+﻿using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.DTOs.Medicos;
 using GestionConsultorio.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -10,20 +9,15 @@ namespace GestionConsultorio.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class MedicosController(
-    IMedicoRepository medicoRepository,
-    IValidacionEliminacionService validacionEliminacionService,
-    IMedicoService medicoService) : ControllerBase
+public class MedicosController(IMedicoService medicoService) : ControllerBase
 {
-    private readonly IMedicoRepository _medicoRepository = medicoRepository;
-    private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
     private readonly IMedicoService _medicoService = medicoService;
 
     [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Medico>>> ObtenerTodos()
     {
-        var medicos = await _medicoRepository.ObtenerTodosConEspecialidadAsync();
+        var medicos = await _medicoService.ObtenerTodosAsync();
         return Ok(medicos);
     }
 
@@ -31,7 +25,7 @@ public class MedicosController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Medico>> ObtenerPorId(int id)
     {
-        var medico = await _medicoRepository.ObtenerPorIdConEspecialidadAsync(id);
+        var medico = await _medicoService.ObtenerPorIdAsync(id);
 
         if (medico is null)
             return NotFound("Médico no encontrado.");
@@ -43,7 +37,7 @@ public class MedicosController(
     [HttpGet("matricula/{matricula}")]
     public async Task<ActionResult<Medico>> ObtenerPorMatricula(string matricula)
     {
-        var medico = await _medicoRepository.ObtenerPorMatriculaAsync(matricula);
+        var medico = await _medicoService.ObtenerPorMatriculaAsync(matricula);
 
         if (medico is null)
             return NotFound("Médico no encontrado.");
@@ -55,7 +49,7 @@ public class MedicosController(
     [HttpGet("especialidad/{especialidadId:int}")]
     public async Task<ActionResult<IEnumerable<Medico>>> ObtenerPorEspecialidad(int especialidadId)
     {
-        var medicos = await _medicoRepository.ObtenerPorEspecialidadAsync(especialidadId);
+        var medicos = await _medicoService.ObtenerPorEspecialidadAsync(especialidadId);
         return Ok(medicos);
     }
 
@@ -79,46 +73,29 @@ public class MedicosController(
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Medico medico)
     {
-        if (id != medico.Id)
-            return BadRequest("El ID de la ruta no coincide con el ID del médico.");
+        var resultado = await _medicoService.ActualizarAsync(id, medico);
 
-        var medicoExistente = await _medicoRepository.ObtenerPorIdAsync(id);
+        if (resultado.Exitoso)
+            return NoContent();
 
-        if (medicoExistente is null)
-            return NotFound("Médico no encontrado.");
+        if (resultado.Mensaje == "Médico no encontrado.")
+            return NotFound(resultado.Mensaje);
 
-        var medicoConMismaMatricula = await _medicoRepository.ObtenerPorMatriculaAsync(medico.Matricula);
-
-        if (medicoConMismaMatricula is not null && medicoConMismaMatricula.Id != id)
-            return BadRequest("Ya existe otro médico registrado con esa matrícula.");
-
-        medicoExistente.NombreCompleto = medico.NombreCompleto;
-        medicoExistente.Matricula = medico.Matricula;
-        medicoExistente.Telefono = medico.Telefono;
-        medicoExistente.Email = medico.Email;
-        medicoExistente.EspecialidadId = medico.EspecialidadId;
-
-        await _medicoRepository.ActualizarAsync(medicoExistente);
-
-        return NoContent();
+        return BadRequest(resultado.Mensaje);
     }
 
     [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        var medico = await _medicoRepository.ObtenerPorIdAsync(id);
+        var resultado = await _medicoService.EliminarAsync(id);
 
-        if (medico is null)
-            return NotFound("Médico no encontrado.");
+        if (resultado.Exitoso)
+            return NoContent();
 
-        var validacion = await _validacionEliminacionService.ValidarMedicoAsync(id);
+        if (resultado.Mensaje == "Médico no encontrado.")
+            return NotFound(resultado.Mensaje);
 
-        if (!validacion.PuedeEliminar)
-            return BadRequest(validacion.Mensaje);
-
-        await _medicoRepository.EliminarAsync(medico);
-
-        return NoContent();
+        return BadRequest(resultado.Mensaje);
     }
 }

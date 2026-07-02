@@ -12,6 +12,7 @@ public class MedicoRepository(AppDbContext context) : Repository<Medico>(context
     private IQueryable<Medico> MedicosConEspecialidad()
     {
         return _context.Medicos
+            .AsNoTracking()
             .Include(m => m.Especialidad);
     }
 
@@ -29,14 +30,19 @@ public class MedicoRepository(AppDbContext context) : Repository<Medico>(context
 
     public async Task<Medico?> ObtenerPorMatriculaAsync(string matricula)
     {
+        var matriculaNormalizada = matricula.Trim().ToLower();
+
         return await MedicosConEspecialidad()
-            .FirstOrDefaultAsync(m => m.Matricula == matricula);
+            .FirstOrDefaultAsync(m => m.Matricula.ToLower() == matriculaNormalizada);
     }
 
     public async Task<bool> ExisteMatriculaAsync(string matricula)
     {
+        var matriculaNormalizada = matricula.Trim().ToLower();
+
         return await _context.Medicos
-            .AnyAsync(m => m.Matricula == matricula);
+            .AsNoTracking()
+            .AnyAsync(m => m.Matricula.ToLower() == matriculaNormalizada);
     }
 
     public async Task<IEnumerable<Medico>> ObtenerPorEspecialidadAsync(int especialidadId)
@@ -48,7 +54,9 @@ public class MedicoRepository(AppDbContext context) : Repository<Medico>(context
 
     public async Task<Medico?> ObtenerPorEmailAsync(string email)
     {
+        var emailNormalizado = email.Trim().ToLower();
+
         return await MedicosConEspecialidad()
-            .FirstOrDefaultAsync(m => m.Email.ToLower() == email.ToLower());
+            .FirstOrDefaultAsync(m => m.Email.ToLower() == emailNormalizado);
     }
 }
