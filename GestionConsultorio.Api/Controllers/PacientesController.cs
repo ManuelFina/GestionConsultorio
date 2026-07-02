@@ -1,4 +1,5 @@
 ﻿using GestionConsultorio.Api.Repositories.Interfaces;
+using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +9,12 @@ namespace GestionConsultorio.Api.Controllers;
 [Authorize(Roles = "Administrador,Recepcionista")]
 [ApiController]
 [Route("api/[controller]")]
-public class PacientesController(IPacienteRepository pacienteRepository) : ControllerBase
+public class PacientesController(
+    IPacienteRepository pacienteRepository,
+    IValidacionEliminacionService validacionEliminacionService) : ControllerBase
 {
     private readonly IPacienteRepository _pacienteRepository = pacienteRepository;
+    private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Paciente>>> ObtenerTodos()
@@ -95,6 +99,11 @@ public class PacientesController(IPacienteRepository pacienteRepository) : Contr
 
         if (paciente is null)
             return NotFound("Paciente no encontrado.");
+
+        var validacion = await _validacionEliminacionService.ValidarPacienteAsync(id);
+
+        if (!validacion.PuedeEliminar)
+            return BadRequest(validacion.Mensaje);
 
         await _pacienteRepository.EliminarAsync(paciente);
 

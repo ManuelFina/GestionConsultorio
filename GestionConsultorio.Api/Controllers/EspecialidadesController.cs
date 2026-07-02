@@ -1,4 +1,5 @@
 ﻿using GestionConsultorio.Api.Repositories.Interfaces;
+using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +9,12 @@ namespace GestionConsultorio.Api.Controllers;
 [Authorize(Roles = "Administrador")]
 [ApiController]
 [Route("api/[controller]")]
-public class EspecialidadesController(IRepository<Especialidad> especialidadRepository) : ControllerBase
+public class EspecialidadesController(
+    IRepository<Especialidad> especialidadRepository,
+    IValidacionEliminacionService validacionEliminacionService) : ControllerBase
 {
     private readonly IRepository<Especialidad> _especialidadRepository = especialidadRepository;
+    private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Especialidad>>> ObtenerTodos()
@@ -67,6 +71,11 @@ public class EspecialidadesController(IRepository<Especialidad> especialidadRepo
 
         if (especialidad is null)
             return NotFound("Especialidad no encontrada.");
+
+        var validacion = await _validacionEliminacionService.ValidarEspecialidadAsync(id);
+
+        if (!validacion.PuedeEliminar)
+            return BadRequest(validacion.Mensaje);
 
         await _especialidadRepository.EliminarAsync(especialidad);
 

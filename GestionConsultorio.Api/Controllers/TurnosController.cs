@@ -9,9 +9,12 @@ namespace GestionConsultorio.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class TurnosController(ITurnoService turnoService) : ControllerBase
+public class TurnosController(
+    ITurnoService turnoService,
+    IValidacionEliminacionService validacionEliminacionService) : ControllerBase
 {
     private readonly ITurnoService _turnoService = turnoService;
+    private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
     [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
@@ -137,6 +140,16 @@ public class TurnosController(ITurnoService turnoService) : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
+        var turno = await _turnoService.ObtenerPorIdAsync(id);
+
+        if (turno is null)
+            return NotFound("Turno no encontrado.");
+
+        var validacion = await _validacionEliminacionService.ValidarTurnoAsync(id);
+
+        if (!validacion.PuedeEliminar)
+            return BadRequest(validacion.Mensaje);
+
         var resultado = await _turnoService.EliminarAsync(id);
 
         if (!resultado.Exitoso)

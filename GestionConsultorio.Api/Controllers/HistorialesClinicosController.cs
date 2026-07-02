@@ -74,9 +74,15 @@ public class HistorialesClinicosController(IHistorialClinicoService historialCli
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
+        var historial = await _historialClinicoService.ObtenerPorIdAsync(id);
+
+        if (historial is null)
+            return NotFound("Historial clínico no encontrado.");
+
         var resultado = await _historialClinicoService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
