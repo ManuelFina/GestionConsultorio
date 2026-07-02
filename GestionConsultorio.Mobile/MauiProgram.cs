@@ -27,10 +27,20 @@ public static class MauiProgram
 #endif
 
         builder.Services.AddScoped<ISesionService, SesionService>();
-        builder.Services.AddScoped(sp => new HttpClient
 
+        builder.Services.AddScoped(sp =>
         {
-            BaseAddress = new Uri(ApiSettings.BaseUrl)
+            var sesionService = sp.GetRequiredService<ISesionService>();
+
+            var authHeaderHandler = new AuthHeaderHandler(sesionService)
+            {
+                InnerHandler = new HttpClientHandler()
+            };
+
+            return new HttpClient(authHeaderHandler)
+            {
+                BaseAddress = new Uri(ApiSettings.BaseUrl)
+            };
         });
 
         builder.Services.AddScoped<IPacienteService, PacienteService>();
