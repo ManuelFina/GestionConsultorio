@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
-[Authorize(Roles = "Administrador")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class EspecialidadesController(
@@ -16,6 +16,7 @@ public class EspecialidadesController(
     private readonly IRepository<Especialidad> _especialidadRepository = especialidadRepository;
     private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Especialidad>>> ObtenerTodos()
     {
@@ -23,6 +24,7 @@ public class EspecialidadesController(
         return Ok(especialidades);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Especialidad>> ObtenerPorId(int id)
     {
@@ -34,9 +36,26 @@ public class EspecialidadesController(
         return Ok(especialidad);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     public async Task<ActionResult<Especialidad>> Crear(Especialidad especialidad)
     {
+        var nombreNormalizado = especialidad.Nombre.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombreNormalizado))
+            return BadRequest("El nombre de la especialidad es obligatorio.");
+
+        var especialidades = await _especialidadRepository.ObtenerTodosAsync();
+
+        var existeEspecialidad = especialidades.Any(e =>
+            e.Nombre.Trim().Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (existeEspecialidad)
+            return BadRequest("Ya existe una especialidad registrada con ese nombre.");
+
+        especialidad.Nombre = nombreNormalizado;
+
         await _especialidadRepository.CrearAsync(especialidad);
 
         return CreatedAtAction(
@@ -46,6 +65,7 @@ public class EspecialidadesController(
         );
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Especialidad especialidad)
     {
@@ -57,13 +77,29 @@ public class EspecialidadesController(
         if (especialidadExistente is null)
             return NotFound("Especialidad no encontrada.");
 
-        especialidadExistente.Nombre = especialidad.Nombre;
+        var nombreNormalizado = especialidad.Nombre.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombreNormalizado))
+            return BadRequest("El nombre de la especialidad es obligatorio.");
+
+        var especialidades = await _especialidadRepository.ObtenerTodosAsync();
+
+        var existeOtraEspecialidad = especialidades.Any(e =>
+            e.Id != id &&
+            e.Nombre.Trim().Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (existeOtraEspecialidad)
+            return BadRequest("Ya existe otra especialidad registrada con ese nombre.");
+
+        especialidadExistente.Nombre = nombreNormalizado;
 
         await _especialidadRepository.ActualizarAsync(especialidadExistente);
 
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {

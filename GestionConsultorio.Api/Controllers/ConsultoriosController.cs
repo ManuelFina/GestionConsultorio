@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
-[Authorize(Roles = "Administrador")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ConsultoriosController(
@@ -16,6 +16,7 @@ public class ConsultoriosController(
     private readonly IRepository<Consultorio> _consultorioRepository = consultorioRepository;
     private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Consultorio>>> ObtenerTodos()
     {
@@ -23,6 +24,7 @@ public class ConsultoriosController(
         return Ok(consultorios);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Consultorio>> ObtenerPorId(int id)
     {
@@ -34,9 +36,26 @@ public class ConsultoriosController(
         return Ok(consultorio);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     public async Task<ActionResult<Consultorio>> Crear(Consultorio consultorio)
     {
+        var nombreNormalizado = consultorio.Nombre.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombreNormalizado))
+            return BadRequest("El nombre del consultorio es obligatorio.");
+
+        var consultorios = await _consultorioRepository.ObtenerTodosAsync();
+
+        var existeConsultorio = consultorios.Any(c =>
+            c.Nombre.Trim().Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (existeConsultorio)
+            return BadRequest("Ya existe un consultorio registrado con ese nombre.");
+
+        consultorio.Nombre = nombreNormalizado;
+
         await _consultorioRepository.CrearAsync(consultorio);
 
         return CreatedAtAction(
@@ -46,6 +65,7 @@ public class ConsultoriosController(
         );
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Consultorio consultorio)
     {
@@ -57,13 +77,29 @@ public class ConsultoriosController(
         if (consultorioExistente is null)
             return NotFound("Consultorio no encontrado.");
 
-        consultorioExistente.Nombre = consultorio.Nombre;
+        var nombreNormalizado = consultorio.Nombre.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombreNormalizado))
+            return BadRequest("El nombre del consultorio es obligatorio.");
+
+        var consultorios = await _consultorioRepository.ObtenerTodosAsync();
+
+        var existeOtroConsultorio = consultorios.Any(c =>
+            c.Id != id &&
+            c.Nombre.Trim().Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (existeOtroConsultorio)
+            return BadRequest("Ya existe otro consultorio registrado con ese nombre.");
+
+        consultorioExistente.Nombre = nombreNormalizado;
 
         await _consultorioRepository.ActualizarAsync(consultorioExistente);
 
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {

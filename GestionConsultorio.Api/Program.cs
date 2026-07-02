@@ -28,6 +28,7 @@ builder.Services.AddScoped<IHistorialClinicoRepository, HistorialClinicoReposito
 builder.Services.AddScoped<ITurnoService, TurnoService>();
 builder.Services.AddScoped<IHistorialClinicoService, HistorialClinicoService>();
 builder.Services.AddScoped<IMedicoService, MedicoService>();
+builder.Services.AddScoped<IPacienteService, PacienteService>();
 
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();

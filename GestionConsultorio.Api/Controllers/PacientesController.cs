@@ -6,16 +6,19 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GestionConsultorio.Api.Controllers;
 
-[Authorize(Roles = "Administrador,Recepcionista")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class PacientesController(
     IPacienteRepository pacienteRepository,
+    IPacienteService pacienteService,
     IValidacionEliminacionService validacionEliminacionService) : ControllerBase
 {
     private readonly IPacienteRepository _pacienteRepository = pacienteRepository;
+    private readonly IPacienteService _pacienteService = pacienteService;
     private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Paciente>>> ObtenerTodos()
     {
@@ -23,6 +26,7 @@ public class PacientesController(
         return Ok(pacientes);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Paciente>> ObtenerPorId(int id)
     {
@@ -34,10 +38,11 @@ public class PacientesController(
         return Ok(paciente);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet("dni/{dni}")]
     public async Task<ActionResult<Paciente>> ObtenerPorDni(string dni)
     {
-        var paciente = await _pacienteRepository.ObtenerPorDniAsync(dni);
+        var paciente = await _pacienteRepository.ObtenerPorDniAsync(dni.Trim());
 
         if (paciente is null)
             return NotFound("Paciente no encontrado.");
@@ -45,53 +50,40 @@ public class PacientesController(
         return Ok(paciente);
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPost]
     public async Task<ActionResult<Paciente>> Crear(Paciente paciente)
     {
-        var existeDni = await _pacienteRepository.ExisteDniAsync(paciente.Dni);
+        var resultado = await _pacienteService.CrearAsync(paciente);
 
-        if (existeDni)
-            return BadRequest("Ya existe un paciente registrado con ese DNI.");
-
-        await _pacienteRepository.CrearAsync(paciente);
+        if (!resultado.Exitoso)
+            return BadRequest(resultado.Mensaje);
 
         return CreatedAtAction(
             nameof(ObtenerPorId),
-            new { id = paciente.Id },
-            paciente
+            new { id = resultado.Data!.Id },
+            resultado.Data
         );
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, Paciente paciente)
     {
-        if (id != paciente.Id)
-            return BadRequest("El ID de la ruta no coincide con el ID del paciente.");
+        var resultado = await _pacienteService.ActualizarAsync(id, paciente);
 
-        var pacienteExistente = await _pacienteRepository.ObtenerPorIdAsync(id);
+        if (!resultado.Exitoso)
+        {
+            if (resultado.Mensaje == "Paciente no encontrado.")
+                return NotFound(resultado.Mensaje);
 
-        if (pacienteExistente is null)
-            return NotFound("Paciente no encontrado.");
-
-        var pacienteConMismoDni = await _pacienteRepository.ObtenerPorDniAsync(paciente.Dni);
-
-        if (pacienteConMismoDni is not null && pacienteConMismoDni.Id != id)
-            return BadRequest("Ya existe otro paciente registrado con ese DNI.");
-
-        pacienteExistente.NombreCompleto = paciente.NombreCompleto;
-        pacienteExistente.Dni = paciente.Dni;
-        pacienteExistente.FechaNacimiento = paciente.FechaNacimiento;
-        pacienteExistente.Telefono = paciente.Telefono;
-        pacienteExistente.Email = paciente.Email;
-        pacienteExistente.Direccion = paciente.Direccion;
-        pacienteExistente.ObraSocial = paciente.ObraSocial;
-        pacienteExistente.NumeroAfiliado = paciente.NumeroAfiliado;
-
-        await _pacienteRepository.ActualizarAsync(pacienteExistente);
+            return BadRequest(resultado.Mensaje);
+        }
 
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador,Recepcionista")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
