@@ -13,6 +13,9 @@ public class HistorialClinico
     public string Diagnostico { get; set; } = string.Empty;
     public string Tratamiento { get; set; } = string.Empty;
     public string Observaciones { get; set; } = string.Empty;
+    public string ResourceType { get; set; } = string.Empty;
 
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
+
+    public ICollection<ArchivoHistorialClinico> Archivos { get; set; } = new List<ArchivoHistorialClinico>();
 }

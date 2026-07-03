@@ -54,6 +54,8 @@ public static class MauiProgram
 
         builder.Services.AddScoped<IAlertService, AlertService>();
 
+        builder.Services.AddScoped<IArchivoHistorialClinicoService, ArchivoHistorialClinicoService>();
+
         return builder.Build();
     }
 }

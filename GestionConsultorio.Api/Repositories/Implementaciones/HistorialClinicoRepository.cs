@@ -18,7 +18,8 @@ public class HistorialClinicoRepository(AppDbContext context)
             .Include(h => h.Turno!)
                 .ThenInclude(t => t.Medico)
             .Include(h => h.Turno!)
-                .ThenInclude(t => t.Consultorio);
+                .ThenInclude(t => t.Consultorio)
+            .Include(h => h.Archivos);
     }
 
     public async Task<IEnumerable<HistorialClinico>> ObtenerTodosConRelacionesAsync()

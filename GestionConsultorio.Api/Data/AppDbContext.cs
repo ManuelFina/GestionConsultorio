@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Consultorio> Consultorios { get; set; }
     public DbSet<Turno> Turnos { get; set; }
     public DbSet<HistorialClinico> HistorialesClinicos { get; set; }
+    public DbSet<ArchivoHistorialClinico> ArchivosHistorialClinico { get; set; }
     public DbSet<Usuario> Usuarios { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,5 +29,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(h => h.TurnoId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HistorialClinico>()
+            .HasIndex(h => h.TurnoId)
+            .IsUnique();
+
+        modelBuilder.Entity<ArchivoHistorialClinico>()
+            .HasOne(a => a.HistorialClinico)
+            .WithMany(h => h.Archivos)
+            .HasForeignKey(a => a.HistorialClinicoId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

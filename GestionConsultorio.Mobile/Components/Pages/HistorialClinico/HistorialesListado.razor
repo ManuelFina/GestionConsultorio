@@ -2,8 +2,10 @@
 
 @using GestionConsultorio.Mobile.Services.Interfaces
 @using GestionConsultorio.Shared.Models
+@using Microsoft.AspNetCore.Components.Forms
 
 @inject IHistorialClinicoService HistorialClinicoService
+@inject IArchivoHistorialClinicoService ArchivoHistorialClinicoService
 @inject IAlertService AlertService
 @inject NavigationManager Navigation
 
@@ -101,6 +103,69 @@
                             <p>@MostrarDato(historial.Observaciones, "Sin observaciones registradas.")</p>
                         </div>
 
+                        <div style="margin-top: 18px; padding: 16px; border: 2px dashed #999; border-radius: 12px;">
+                            <h4 style="margin-bottom: 6px;">Archivos adjuntos</h4>
+
+                            @if (historial.Archivos is not null && historial.Archivos.Any())
+                            {
+                                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+                                    @foreach (var archivo in historial.Archivos.OrderByDescending(a => a.FechaCarga))
+                                    {
+                                        <div style="padding: 12px; border: 1px solid #ddd; border-radius: 10px;">
+                                            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">
+                                                <div>
+                                                    <strong>@archivo.NombreArchivo</strong>
+                                                    <p style="margin: 4px 0 0;">
+                                                        @MostrarDato(archivo.TipoContenido)
+                                                        -
+                                                        @FormatearTamanio(archivo.TamanioBytes)
+                                                    </p>
+                                                </div>
+
+                                                <span class="badge badge-info">
+                                                    Archivo
+                                                </span>
+                                            </div>
+
+                                            <div class="actions history-actions" style="margin-top: 10px;">
+                                                <a class="action-btn"
+                                                   href="@archivo.Url"
+                                                   target="_blank">
+                                                    Ver
+                                                </a>
+
+                                                <button class="action-btn action-danger"
+                                                        @onclick="() => EliminarArchivoAsync(archivo.Id)">
+                                                    Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p style="margin-top: 8px;">Sin archivos adjuntos.</p>
+                            }
+
+                            <div style="margin-top: 16px; padding: 12px; border: 1px solid #ddd; border-radius: 10px;">
+                                <strong>Adjuntar archivo al historial</strong>
+                                <p style="margin: 4px 0 10px;">
+                                    Podés subir JPG, PNG, WEBP o PDF.
+                                </p>
+
+                                <InputFile OnChange="@(e => SubirArchivoAsync(historial.Id, e))"
+                                           accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf" />
+
+                                @if (HistorialSubiendoId == historial.Id)
+                                {
+                                    <p style="margin-top: 8px;">
+                                        Subiendo archivo...
+                                    </p>
+                                }
+                            </div>
+                        </div>
+
                         <div class="actions history-actions">
                             <button class="action-btn" @onclick="() => EditarHistorial(historial.Id)">
                                 Editar
@@ -121,6 +186,8 @@
     private bool Cargando = true;
     private string MensajeError = string.Empty;
     private string TextoBusqueda = string.Empty;
+
+    private int? HistorialSubiendoId;
 
     private List<HistorialClinico> Historiales = new();
 
@@ -154,11 +221,6 @@
 
         Historiales = resultado.Data ?? new List<HistorialClinico>();
         Cargando = false;
-    }
-
-    private void IrNuevoHistorial()
-    {
-        Navigation.NavigateTo("/historiales/nuevo");
     }
 
     private void EditarHistorial(int id)
@@ -198,8 +260,94 @@
         await CargarHistorialesAsync();
     }
 
+    private async Task SubirArchivoAsync(int historialClinicoId, InputFileChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+        HistorialSubiendoId = historialClinicoId;
+
+        var archivo = e.File;
+
+        if (archivo is null)
+        {
+            HistorialSubiendoId = null;
+
+            await AlertService.ErrorAsync(
+                "Archivo inválido",
+                "Debe seleccionar un archivo.");
+
+            return;
+        }
+
+        var resultado = await ArchivoHistorialClinicoService.SubirArchivoAsync(
+            historialClinicoId,
+            archivo);
+
+        HistorialSubiendoId = null;
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo subir el archivo",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Archivo subido",
+            "El archivo se adjuntó correctamente al historial clínico.");
+
+        await CargarHistorialesAsync();
+    }
+
+    private async Task EliminarArchivoAsync(int archivoId)
+    {
+        MensajeError = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar archivo",
+            "¿Seguro que querés eliminar este archivo adjunto?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        var resultado = await ArchivoHistorialClinicoService.EliminarAsync(archivoId);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar el archivo",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Archivo eliminado",
+            "El archivo se eliminó correctamente.");
+
+        await CargarHistorialesAsync();
+    }
+
     private static string MostrarDato(string? valor, string textoAlternativo = "-")
     {
         return string.IsNullOrWhiteSpace(valor) ? textoAlternativo : valor;
+    }
+
+    private static string FormatearTamanio(long bytes)
+    {
+        if (bytes <= 0)
+            return "-";
+
+        if (bytes < 1024)
+            return $"{bytes} B";
+
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+
+        return $"{bytes / 1024.0 / 1024.0:F1} MB";
     }
 }
