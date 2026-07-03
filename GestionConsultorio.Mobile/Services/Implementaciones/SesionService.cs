@@ -1,6 +1,5 @@
 ﻿using GestionConsultorio.Mobile.Services.Interfaces;
 using GestionConsultorio.Shared.DTOs.Auth;
-using Microsoft.Maui.Storage;
 
 namespace GestionConsultorio.Mobile.Services.Implementaciones;
 
@@ -14,46 +13,49 @@ public class SesionService : ISesionService
 
     public async Task GuardarSesionAsync(AuthResponseDto authResponse)
     {
-        await SecureStorage.SetAsync(TokenKey, authResponse.Token);
+        await SecureStorage.Default.SetAsync(TokenKey, authResponse.Token);
 
-        Preferences.Set(UsuarioIdKey, authResponse.UsuarioId);
-        Preferences.Set(NombreCompletoKey, authResponse.NombreCompleto);
-        Preferences.Set(EmailKey, authResponse.Email);
-        Preferences.Set(RolKey, authResponse.Rol);
+        Preferences.Default.Set(UsuarioIdKey, authResponse.UsuarioId);
+        Preferences.Default.Set(NombreCompletoKey, authResponse.NombreCompleto);
+        Preferences.Default.Set(EmailKey, authResponse.Email);
+        Preferences.Default.Set(RolKey, authResponse.Rol);
     }
 
     public async Task<string?> ObtenerTokenAsync()
     {
-        return await SecureStorage.GetAsync(TokenKey);
+        return await SecureStorage.Default.GetAsync(TokenKey);
     }
 
     public string? ObtenerRol()
     {
-        return Preferences.Get(RolKey, null);
+        var rol = Preferences.Default.Get(RolKey, string.Empty);
+        return string.IsNullOrWhiteSpace(rol) ? null : rol;
     }
 
     public string? ObtenerNombreCompleto()
     {
-        return Preferences.Get(NombreCompletoKey, null);
+        var nombreCompleto = Preferences.Default.Get(NombreCompletoKey, string.Empty);
+        return string.IsNullOrWhiteSpace(nombreCompleto) ? null : nombreCompleto;
     }
 
     public string? ObtenerEmail()
     {
-        return Preferences.Get(EmailKey, null);
+        var email = Preferences.Default.Get(EmailKey, string.Empty);
+        return string.IsNullOrWhiteSpace(email) ? null : email;
     }
 
     public int ObtenerUsuarioId()
     {
-        return Preferences.Get(UsuarioIdKey, 0);
+        return Preferences.Default.Get(UsuarioIdKey, 0);
     }
 
     public void CerrarSesion()
     {
-        SecureStorage.Remove(TokenKey);
+        SecureStorage.Default.Remove(TokenKey);
 
-        Preferences.Remove(UsuarioIdKey);
-        Preferences.Remove(NombreCompletoKey);
-        Preferences.Remove(EmailKey);
-        Preferences.Remove(RolKey);
+        Preferences.Default.Remove(UsuarioIdKey);
+        Preferences.Default.Remove(NombreCompletoKey);
+        Preferences.Default.Remove(EmailKey);
+        Preferences.Default.Remove(RolKey);
     }
 }
