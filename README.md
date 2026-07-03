@@ -130,7 +130,6 @@ Medico
 
 ## Próximas mejoras
 
-- Dashboard con estadísticas.
 - Gestión avanzada de usuarios.
 - Reportes por médico, fecha y especialidad.
 - Exportación de datos.
