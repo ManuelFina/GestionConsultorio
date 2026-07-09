@@ -1,6 +1,7 @@
 :root {
     --color-primary: #2563eb;
     --color-primary-dark: #1e40af;
+    --color-primary-soft: #dbeafe;
     --color-secondary: #0f172a;
     --color-background: #f4f7fb;
     --color-surface: #ffffff;
@@ -12,6 +13,9 @@
     --color-danger: #dc2626;
     --sidebar-width: 290px;
     --font-main: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.06);
+    --shadow-medium: 0 14px 34px rgba(15, 23, 42, 0.09);
+    --transition-fast: 0.15s ease;
 }
 
 * {
@@ -22,7 +26,7 @@
 html,
 body {
     font-family: var(--font-main);
-    background-color: var(--color-background);
+    background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%), linear-gradient(180deg, #f8fafc 0%, var(--color-background) 45%, #eef4ff 100%);
     color: var(--color-text);
     margin: 0;
     min-height: 100%;
@@ -39,7 +43,6 @@ body {
     min-height: 100vh;
 }
 
-/* Saca la franja blanca superior que venía del div del index */
 .status-bar-safe-area {
     display: none;
     height: 0;
@@ -124,14 +127,17 @@ button {
 
 .app-shell {
     min-height: 100vh;
-    background-color: var(--color-background);
+    background-color: transparent;
 }
 
 .main-content {
     width: 100%;
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 28px;
-    padding-bottom: max(42px, calc(env(safe-area-inset-bottom) + 34px));
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* =========================
@@ -139,27 +145,27 @@ button {
 ========================= */
 
 .topbar {
-    min-height: 82px;
-    background-color: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
+    min-height: 98px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 58%, #2563eb 100%);
+    border-bottom: 1px solid rgba(191, 219, 254, 0.22);
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 16px 24px 18px;
+    padding: 32px 24px 20px;
     margin: -28px -28px 30px;
     position: sticky;
     top: 0;
     z-index: 120;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
 }
 
 .menu-toggle {
     width: 52px;
     height: 52px;
     min-width: 52px;
-    border: 1px solid var(--color-border);
-    background-color: white;
-    color: var(--color-secondary);
+    border: 1px solid rgba(219, 234, 254, 0.8);
+    background-color: rgba(255, 255, 255, 0.96);
+    color: var(--color-primary-dark);
     border-radius: 18px;
     font-size: 25px;
     line-height: 1;
@@ -167,10 +173,17 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.13);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
     .menu-toggle:hover {
-        background-color: #f8fafc;
+        background-color: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .menu-toggle:active {
+        background-color: #dbeafe;
     }
 
 .topbar-title {
@@ -181,14 +194,14 @@ button {
 
     .topbar-title strong {
         font-size: 17px;
-        color: var(--color-secondary);
+        color: #ffffff;
         font-weight: 700;
         line-height: 1.2;
     }
 
     .topbar-title span {
         font-size: 13px;
-        color: var(--color-muted);
+        color: #bfdbfe;
         margin-top: 4px;
     }
 
@@ -201,7 +214,7 @@ button {
     max-width: 88vw;
     min-height: 100vh;
     height: 100dvh;
-    background: linear-gradient(180deg, #0f172a 0%, #1e3a8a 100%);
+    background: radial-gradient(circle at top left, rgba(96, 165, 250, 0.20), transparent 34%), linear-gradient(180deg, #0f172a 0%, #1e3a8a 100%);
     color: white;
     padding: max(34px, calc(env(safe-area-inset-top) + 28px)) 18px max(110px, calc(env(safe-area-inset-bottom) + 92px));
     position: fixed;
@@ -210,9 +223,10 @@ button {
     flex-direction: column;
     z-index: 200;
     transform: translateX(-100%);
-    transition: transform 0.25s ease;
+    transition: transform 0.22s ease;
     overflow-y: auto;
     overscroll-behavior: contain;
+    box-shadow: 24px 0 60px rgba(15, 23, 42, 0.25);
 }
 
     .sidebar.open {
@@ -281,7 +295,7 @@ button {
     color: rgba(255, 255, 255, 0.84);
     font-size: 15px;
     margin-bottom: 6px;
-    transition: 0.2s ease;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
     .nav-link:hover,
@@ -362,15 +376,15 @@ button {
     align-items: center;
     justify-content: space-between;
     gap: 18px;
-    margin-bottom: 26px;
+    margin-bottom: 28px;
 }
 
 .page-title h2 {
     margin: 0;
-    font-size: 30px;
-    font-weight: 700;
+    font-size: 31px;
+    font-weight: 750;
     color: var(--color-secondary);
-    line-height: 1.15;
+    line-height: 1.12;
 }
 
 .page-title p {
@@ -385,10 +399,10 @@ button {
 ========================= */
 
 .card {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 22px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    background-color: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 24px;
+    box-shadow: var(--shadow-soft);
 }
 
 .card-body {
@@ -403,14 +417,28 @@ button {
 }
 
 .stat-card {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.11), transparent 42%), var(--color-surface);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 24px;
     padding: 24px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
 }
 
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        right: -28px;
+        top: -28px;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        background-color: rgba(37, 99, 235, 0.08);
+    }
+
     .stat-card span {
+        position: relative;
         display: block;
         color: var(--color-muted);
         font-size: 14px;
@@ -418,11 +446,12 @@ button {
     }
 
     .stat-card strong {
+        position: relative;
         display: block;
         color: var(--color-secondary);
-        font-size: 34px;
+        font-size: 36px;
         line-height: 1;
-        font-weight: 700;
+        font-weight: 750;
     }
 
 /* =========================
@@ -452,6 +481,7 @@ button {
     outline: none;
     background-color: white;
     color: var(--color-text);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
     .form-control:focus {
@@ -495,16 +525,17 @@ button {
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-primary {
-    background-color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.20);
 }
 
     .btn-primary:hover {
-        background-color: var(--color-primary-dark);
+        box-shadow: 0 12px 26px rgba(37, 99, 235, 0.26);
     }
 
 .btn-outline {
@@ -515,6 +546,7 @@ button {
 
     .btn-outline:hover {
         background-color: #f8fafc;
+        border-color: #cbd5e1;
     }
 
 .btn-danger {
@@ -563,9 +595,17 @@ button {
         vertical-align: middle;
     }
 
-    .data-table tr:last-child td {
-        border-bottom: none;
+    .data-table tr {
+        transition: background-color var(--transition-fast);
     }
+
+        .data-table tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
 
 .table-subtext {
     color: var(--color-muted);
@@ -586,10 +626,12 @@ button {
     padding: 8px 10px;
     font-size: 13px;
     cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
     .action-btn:hover {
         background-color: #f8fafc;
+        border-color: #cbd5e1;
     }
 
 .action-danger {
@@ -726,14 +768,14 @@ button {
     align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
     .section-header h3 {
         margin: 0;
-        font-size: 19px;
+        font-size: 20px;
         color: var(--color-secondary);
-        font-weight: 700;
+        font-weight: 750;
     }
 
     .section-header p {
@@ -752,43 +794,59 @@ button {
 .quick-actions {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 13px;
 }
 
 .quick-action-card {
     width: 100%;
     text-align: left;
-    border: 1px solid var(--color-border);
-    background-color: white;
-    border-radius: 18px;
-    padding: 17px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 20px;
+    padding: 18px;
     cursor: pointer;
-    transition: 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-    .quick-action-card:hover {
-        border-color: var(--color-primary);
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.10);
-        transform: translateY(-1px);
+    .quick-action-card::after {
+        content: "›";
+        position: absolute;
+        right: 18px;
+        top: 18px;
+        color: #94a3b8;
+        font-size: 24px;
+        line-height: 1;
     }
+
+    .quick-action-card:hover {
+        border-color: rgba(37, 99, 235, 0.35);
+        box-shadow: 0 12px 26px rgba(37, 99, 235, 0.09);
+    }
+
+        .quick-action-card:hover::after {
+            color: var(--color-primary);
+        }
 
     .quick-action-card span {
         display: block;
-        font-size: 24px;
-        margin-bottom: 9px;
+        font-size: 25px;
+        margin-bottom: 10px;
     }
 
     .quick-action-card strong {
         display: block;
         font-size: 15px;
         color: var(--color-secondary);
-        margin-bottom: 4px;
-        font-weight: 700;
+        margin-bottom: 5px;
+        font-weight: 750;
     }
 
     .quick-action-card small {
         color: var(--color-muted);
         font-size: 13px;
+        line-height: 1.35;
     }
 
 /* =========================
@@ -953,9 +1011,9 @@ button {
 }
 
 .agenda-date-box {
-    background-color: #eff6ff;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
     border: 1px solid #dbeafe;
-    border-radius: 20px;
+    border-radius: 22px;
     padding: 18px;
 }
 
@@ -970,7 +1028,7 @@ button {
         display: block;
         color: var(--color-primary-dark);
         font-size: 24px;
-        font-weight: 700;
+        font-weight: 750;
     }
 
 .agenda-summary {
@@ -1000,7 +1058,7 @@ button {
     .agenda-summary strong {
         color: var(--color-secondary);
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 750;
     }
 
 .agenda-timeline {
@@ -1188,13 +1246,15 @@ button {
 @media (max-width: 900px) {
     .main-content {
         padding: 22px;
-        padding-bottom: max(46px, calc(env(safe-area-inset-bottom) + 38px));
+        padding-bottom: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .topbar {
-        min-height: 84px;
+        min-height: 100px;
         margin: -22px -22px 26px;
-        padding: 18px 22px 18px;
+        padding: 34px 22px 18px;
     }
 
     .stats-grid {
@@ -1257,14 +1317,17 @@ button {
 
 @media (max-width: 560px) {
     .main-content {
-        padding: 22px 18px;
-        padding-bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px));
+        padding: 22px 18px 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
     }
 
     .topbar {
-        min-height: 88px;
+        min-height: 106px;
         margin: -22px -18px 28px;
-        padding: 20px 18px 18px;
+        padding: 38px 18px 18px;
         gap: 14px;
         position: sticky;
         top: 0;
@@ -1379,9 +1442,10 @@ button {
 
 .turno-horarios-box {
     border: 1px solid var(--color-border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 18px;
     background-color: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
 }
 
 .turno-horarios-header {
@@ -1448,7 +1512,7 @@ button {
     background-color: white;
     text-align: left;
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
     .horario-btn strong {
@@ -1470,7 +1534,7 @@ button {
 
     .horario-btn-free:hover {
         background-color: #f0fdf4;
-        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(22, 163, 74, 0.08);
     }
 
 .horario-btn-busy {
@@ -1508,4 +1572,63 @@ button {
     .horarios-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.app-footer {
+    margin-top: auto;
+    padding: 16px 2px max(14px, calc(env(safe-area-inset-bottom) + 8px));
+    border-top: 1px solid rgba(203, 213, 225, 0.55);
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+    .app-footer div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .app-footer strong {
+        color: var(--color-secondary);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .app-footer span {
+        color: var(--color-muted);
+        font-size: 11px;
+    }
+
+    .app-footer small {
+        color: var(--color-muted);
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+@media (max-width: 560px) {
+    .app-footer {
+        margin-top: auto;
+        padding: 16px 2px max(12px, calc(env(safe-area-inset-bottom) + 6px));
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+        .app-footer strong {
+            font-size: 13px;
+        }
+
+        .app-footer span,
+        .app-footer small {
+            font-size: 11px;
+        }
 }
