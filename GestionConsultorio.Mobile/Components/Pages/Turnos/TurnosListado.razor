@@ -1,10 +1,12 @@
 ﻿@page "/turnos"
 
 @using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Enums
 @using GestionConsultorio.Shared.Models
 
 @inject ITurnoService TurnoService
 @inject IAlertService AlertService
+@inject ISesionService SesionService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -13,9 +15,12 @@
         <p>Gestión de turnos asignados en el consultorio</p>
     </div>
 
-    <button class="btn btn-primary" @onclick="IrNuevoTurno">
-        + Nuevo turno
-    </button>
+    @if (UsuarioEsAdministradorORecepcionista())
+    {
+        <button class="btn btn-primary" @onclick="IrNuevoTurno">
+            + Nuevo turno
+        </button>
+    }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(MensajeError))
@@ -107,37 +112,48 @@
                                 </td>
 
                                 <td>
-                                    <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
+                                    <span class="@ObtenerClaseEstado(turno.Estado)">
                                         @turno.Estado
                                     </span>
                                 </td>
 
                                 <td>
-                                    <div class="actions">
-                                        <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
-                                            Confirmar
-                                        </button>
+                                    @if (HayAccionesDisponibles(turno))
+                                    {
+                                        <div class="actions">
+                                            @if (PuedeMarcarAusente(turno))
+                                            {
+                                                <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
+                                                    Ausente
+                                                </button>
+                                            }
 
-                                        <button class="action-btn" @onclick="() => AtenderAsync(turno.Id)">
-                                            Atender
-                                        </button>
+                                            @if (PuedeEditar(turno))
+                                            {
+                                                <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
+                                                    Editar
+                                                </button>
+                                            }
 
-                                        <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
-                                            Ausente
-                                        </button>
+                                            @if (PuedeCancelar(turno))
+                                            {
+                                                <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
+                                                    Cancelar
+                                                </button>
+                                            }
 
-                                        <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
-                                            Editar
-                                        </button>
-
-                                        <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
-                                            Cancelar
-                                        </button>
-
-                                        <button class="action-btn action-danger" @onclick="() => EliminarAsync(turno.Id)">
-                                            Eliminar
-                                        </button>
-                                    </div>
+                                            @if (PuedeEliminar())
+                                            {
+                                                <button class="action-btn action-danger" @onclick="() => EliminarAsync(turno.Id)">
+                                                    Eliminar
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="table-subtext">Sin acciones</span>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -207,36 +223,6 @@
 
         Turnos = resultado.Data ?? new List<Turno>();
         Cargando = false;
-    }
-
-    private async Task ConfirmarAsync(int id)
-    {
-        var resultado = await TurnoService.ConfirmarAsync(id);
-
-        await ProcesarAccionAsync(
-            resultado,
-            "Turno confirmado",
-            "El turno fue confirmado correctamente.");
-    }
-
-    private async Task AtenderAsync(int id)
-    {
-        var confirmado = await AlertService.ConfirmAsync(
-            "Marcar como atendido",
-            "¿Seguro que querés marcar este turno como atendido?",
-            "Sí, atender");
-
-        if (!confirmado)
-        {
-            return;
-        }
-
-        var resultado = await TurnoService.AtenderAsync(id);
-
-        await ProcesarAccionAsync(
-            resultado,
-            "Turno atendido",
-            "El turno fue marcado como atendido.");
     }
 
     private async Task MarcarAusenteAsync(int id)
@@ -329,21 +315,79 @@
         Navigation.NavigateTo($"/turnos/editar/{id}");
     }
 
+    private bool HayAccionesDisponibles(Turno turno)
+    {
+        return PuedeMarcarAusente(turno) ||
+               PuedeEditar(turno) ||
+               PuedeCancelar(turno) ||
+               PuedeEliminar();
+    }
+
+    private bool PuedeMarcarAusente(Turno turno)
+    {
+        return UsuarioEsAdministradorORecepcionista() &&
+               TurnoActivo(turno);
+    }
+
+    private bool PuedeEditar(Turno turno)
+    {
+        return UsuarioEsAdministradorORecepcionista() &&
+               TurnoActivo(turno);
+    }
+
+    private bool PuedeCancelar(Turno turno)
+    {
+        return UsuarioEsAdministradorORecepcionista() &&
+               TurnoActivo(turno);
+    }
+
+    private bool PuedeEliminar()
+    {
+        return UsuarioEsAdministrador();
+    }
+
+    private bool TurnoActivo(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
+    private bool UsuarioEsAdministrador()
+    {
+        return string.Equals(
+            SesionService.ObtenerRol(),
+            "Administrador",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool UsuarioEsRecepcionista()
+    {
+        return string.Equals(
+            SesionService.ObtenerRol(),
+            "Recepcionista",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool UsuarioEsAdministradorORecepcionista()
+    {
+        return UsuarioEsAdministrador() || UsuarioEsRecepcionista();
+    }
+
     private static string MostrarDato(string? valor)
     {
         return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
     }
 
-    private static string ObtenerClaseEstado(string estado)
+    private static string ObtenerClaseEstado(EstadoTurno estado)
     {
         return estado switch
         {
-            "Confirmado" => "badge badge-success",
-            "Pendiente" => "badge badge-warning",
-            "Cancelado" => "badge badge-danger",
-            "Atendido" => "badge badge-info",
-            "Ausente" => "badge badge-danger",
-            "Reprogramado" => "badge badge-warning",
+            EstadoTurno.Confirmado => "badge badge-success",
+            EstadoTurno.Pendiente => "badge badge-warning",
+            EstadoTurno.Cancelado => "badge badge-danger",
+            EstadoTurno.Atendido => "badge badge-info",
+            EstadoTurno.Ausente => "badge badge-danger",
+            EstadoTurno.Reprogramado => "badge badge-warning",
             _ => "badge badge-info"
         };
     }

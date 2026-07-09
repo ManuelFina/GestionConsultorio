@@ -8,6 +8,7 @@
 @inject ITurnoService TurnoService
 @inject IHistorialClinicoService HistorialClinicoService
 @inject IAlertService AlertService
+@inject ISesionService SesionService
 @inject NavigationManager Navigation
 
 <div class="page-header">
@@ -28,7 +29,7 @@
     </div>
 }
 
-@if (TurnoEnAtencion is not null)
+@if (UsuarioEsMedico() && TurnoEnAtencion is not null)
 {
     <div class="card" style="margin-bottom: 20px;">
         <div class="card-body">
@@ -193,12 +194,6 @@
                                 </div>
 
                                 <div class="actions agenda-actions">
-                                    @if (PuedeConfirmar(turno))
-                                    {
-                                        <button class="action-btn" @onclick="() => ConfirmarAsync(turno.Id)">
-                                            Confirmar
-                                        </button>
-                                    }
 
                                     @if (PuedeAtender(turno))
                                     {
@@ -296,6 +291,12 @@
 
     private void AbrirAtencion(Turno turno)
     {
+        if (!UsuarioEsMedico())
+        {
+            MensajeError = "Solo los médicos pueden atender turnos.";
+            return;
+        }
+
         MensajeError = string.Empty;
         TurnoEnAtencion = turno;
 
@@ -314,6 +315,15 @@
 
     private async Task GuardarAtencionAsync()
     {
+        if (!UsuarioEsMedico())
+        {
+            await AlertService.ErrorAsync(
+                "Acción no permitida",
+                "Solo los médicos pueden atender turnos.");
+
+            return;
+        }
+
         GuardandoAtencion = true;
         MensajeError = string.Empty;
 
@@ -411,15 +421,24 @@
         Navigation.NavigateTo($"/turnos/editar/{id}");
     }
 
+    private bool PuedeAtender(Turno turno)
+    {
+        return UsuarioEsMedico() &&
+               (turno.Estado == EstadoTurno.Pendiente ||
+                turno.Estado == EstadoTurno.Confirmado);
+    }
+
+    private bool UsuarioEsMedico()
+    {
+        return string.Equals(
+            SesionService.ObtenerRol(),
+            "Medico",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool PuedeConfirmar(Turno turno)
     {
         return turno.Estado == EstadoTurno.Pendiente;
-    }
-
-    private static bool PuedeAtender(Turno turno)
-    {
-        return turno.Estado == EstadoTurno.Pendiente ||
-               turno.Estado == EstadoTurno.Confirmado;
     }
 
     private static bool PuedeMarcarAusente(Turno turno)

@@ -1,12 +1,14 @@
 ﻿@page "/dashboard"
 
 @using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.Enums
 @using GestionConsultorio.Shared.Models
 
 @inject IPacienteService PacienteService
 @inject IMedicoService MedicoService
 @inject ITurnoService TurnoService
 @inject IConsultorioService ConsultorioService
+@inject IEspecialidadService EspecialidadService
 @inject ISesionService SesionService
 @inject NavigationManager Navigation
 
@@ -32,10 +34,13 @@
 }
 
 <div class="stats-grid">
-    <div class="stat-card">
-        <span>Turnos de hoy</span>
-        <strong>@TurnosHoy.Count</strong>
-    </div>
+    @if (PuedeVerTurnosHoy)
+    {
+        <div class="stat-card">
+            <span>Turnos de hoy</span>
+            <strong>@TurnosHoy.Count</strong>
+        </div>
+    }
 
     @if (PuedeVerPacientes)
     {
@@ -50,6 +55,14 @@
         <div class="stat-card">
             <span>Médicos activos</span>
             <strong>@CantidadMedicos</strong>
+        </div>
+    }
+
+    @if (PuedeVerEspecialidades)
+    {
+        <div class="stat-card">
+            <span>Especialidades</span>
+            <strong>@CantidadEspecialidades</strong>
         </div>
     }
 
@@ -71,123 +84,165 @@
 </div>
 
 <div class="dashboard-grid">
-    <div class="card">
-        <div class="card-body">
-            <div class="section-header">
-                <div>
-                    <h3>Agenda de hoy</h3>
-                    <p>Turnos programados para @FechaHoyTexto</p>
-                </div>
+    @if (PuedeVerAgenda)
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="section-header">
+                    <div>
+                        <h3>Agenda de hoy</h3>
+                        <p>Turnos programados para @FechaHoyTexto</p>
+                    </div>
 
-                @if (PuedeVerAgenda)
-                {
                     <button class="btn btn-outline" @onclick="IrAgenda">
                         Ver agenda
                     </button>
+                </div>
+
+                @if (Cargando)
+                {
+                    <p class="empty-text">Cargando información...</p>
+                }
+                else if (!TurnosHoy.Any())
+                {
+                    <p class="empty-text">No hay turnos cargados para hoy.</p>
+                }
+                else
+                {
+                    @foreach (var turno in TurnosHoy)
+                    {
+                        <div class="turno-item">
+                            <div class="turno-item-header">
+                                <span class="turno-time">
+                                    @turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")
+                                </span>
+
+                                <span class="@ObtenerClaseEstado(turno.Estado)">
+                                    @turno.Estado
+                                </span>
+                            </div>
+
+                            <div class="turno-patient">
+                                @(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")
+                            </div>
+
+                            <div class="turno-detail">
+                                Médico: @(turno.Medico?.NombreCompleto ?? "Sin médico")
+                            </div>
+
+                            <div class="turno-detail">
+                                Consultorio: @(turno.Consultorio?.Nombre ?? "Sin consultorio")
+                            </div>
+
+                            <div class="turno-detail">
+                                Motivo: @MostrarDato(turno.MotivoConsulta)
+                            </div>
+                        </div>
+                    }
                 }
             </div>
+        </div>
+    }
 
-            @if (Cargando)
-            {
-                <p class="empty-text">Cargando información...</p>
-            }
-            else if (!TurnosHoy.Any())
-            {
-                <p class="empty-text">No hay turnos cargados para hoy.</p>
-            }
-            else
-            {
-                @foreach (var turno in TurnosHoy)
+    @if (EsAdministrador)
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="section-header">
+                    <div>
+                        <h3>Panel administrativo</h3>
+                        <p>Gestión de configuración del consultorio</p>
+                    </div>
+                </div>
+
+                @if (Cargando)
                 {
-                    <div class="turno-item">
-                        <div class="turno-item-header">
-                            <span class="turno-time">
-                                @turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")
-                            </span>
+                    <p class="empty-text">Cargando información...</p>
+                }
+                else
+                {
+                    <div class="quick-actions">
+                        <button class="quick-action-card" @onclick="IrMedicos">
+                            <span>👨‍⚕️</span>
+                            <strong>Médicos</strong>
+                            <small>Gestionar profesionales y accesos médicos</small>
+                        </button>
 
-                            <span class="@ObtenerClaseEstado(turno.Estado.ToString())">
-                                @turno.Estado
-                            </span>
-                        </div>
+                        <button class="quick-action-card" @onclick="IrEspecialidades">
+                            <span>🏥</span>
+                            <strong>Especialidades</strong>
+                            <small>Administrar áreas médicas</small>
+                        </button>
 
-                        <div class="turno-patient">
-                            @(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")
-                        </div>
-
-                        <div class="turno-detail">
-                            Médico: @(turno.Medico?.NombreCompleto ?? "Sin médico")
-                        </div>
-
-                        <div class="turno-detail">
-                            Consultorio: @(turno.Consultorio?.Nombre ?? "Sin consultorio")
-                        </div>
-
-                        <div class="turno-detail">
-                            Motivo: @MostrarDato(turno.MotivoConsulta)
-                        </div>
+                        <button class="quick-action-card" @onclick="IrConsultorios">
+                            <span>🚪</span>
+                            <strong>Consultorios</strong>
+                            <small>Gestionar espacios de atención</small>
+                        </button>
                     </div>
                 }
-            }
+            </div>
         </div>
-    </div>
+    }
 
-    <div class="card">
-        <div class="card-body">
-            <div class="section-header">
-                <div>
-                    <h3>Accesos rápidos</h3>
-                    <p>Operaciones disponibles para tu rol</p>
+    @if (!EsAdministrador)
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="section-header">
+                    <div>
+                        <h3>Accesos rápidos</h3>
+                        <p>Operaciones disponibles para tu rol</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="quick-actions">
-                @if (PuedeVerPacientes)
+                @if (Cargando)
                 {
-                    <button class="quick-action-card" @onclick="IrPacientes">
-                        <span>👥</span>
-                        <strong>Pacientes</strong>
-                        <small>Registrar y consultar pacientes</small>
-                    </button>
+                    <p class="empty-text">Cargando información...</p>
                 }
-
-                @if (PuedeVerMedicos)
+                else
                 {
-                    <button class="quick-action-card" @onclick="IrMedicos">
-                        <span>👨‍⚕️</span>
-                        <strong>Médicos</strong>
-                        <small>Gestionar profesionales</small>
-                    </button>
-                }
+                    <div class="quick-actions">
+                        @if (PuedeVerPacientes)
+                        {
+                            <button class="quick-action-card" @onclick="IrPacientes">
+                                <span>👥</span>
+                                <strong>Pacientes</strong>
+                                <small>Registrar y consultar pacientes</small>
+                            </button>
+                        }
 
-                @if (PuedeVerTurnos)
-                {
-                    <button class="quick-action-card" @onclick="IrTurnos">
-                        <span>🕒</span>
-                        <strong>Turnos</strong>
-                        <small>Administrar turnos</small>
-                    </button>
-                }
+                        @if (PuedeVerTurnos)
+                        {
+                            <button class="quick-action-card" @onclick="IrTurnos">
+                                <span>🕒</span>
+                                <strong>Turnos</strong>
+                                <small>Administrar turnos</small>
+                            </button>
+                        }
 
-                @if (PuedeVerAgenda)
-                {
-                    <button class="quick-action-card" @onclick="IrAgenda">
-                        <span>📅</span>
-                        <strong>Agenda</strong>
-                        <small>Consultar agenda diaria</small>
-                    </button>
-                }
+                        @if (PuedeVerAgenda)
+                        {
+                            <button class="quick-action-card" @onclick="IrAgenda">
+                                <span>📅</span>
+                                <strong>Agenda</strong>
+                                <small>Consultar agenda diaria</small>
+                            </button>
+                        }
 
-                @if (PuedeVerHistoriales)
-                {
-                    <button class="quick-action-card" @onclick="IrHistoriales">
-                        <span>📋</span>
-                        <strong>Historial clínico</strong>
-                        <small>Consultar registros médicos</small>
-                    </button>
+                        @if (PuedeVerHistoriales)
+                        {
+                            <button class="quick-action-card" @onclick="IrHistoriales">
+                                <span>📋</span>
+                                <strong>Historial clínico</strong>
+                                <small>Consultar registros médicos</small>
+                            </button>
+                        }
+                    </div>
                 }
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
@@ -196,9 +251,10 @@
 
     private int CantidadPacientes;
     private int CantidadMedicos;
+    private int CantidadEspecialidades;
     private int CantidadConsultorios;
 
-    private string RolUsuario = "Recepcionista";
+    private string RolUsuario = string.Empty;
 
     private List<Turno> TurnosHoy = new();
 
@@ -206,37 +262,48 @@
 
     private string FechaHoyTexto => DateTime.Today.ToString("dd/MM/yyyy");
 
-    private bool EsAdministrador => RolUsuario == "Administrador";
-    private bool EsRecepcionista => RolUsuario == "Recepcionista";
-    private bool EsMedico => RolUsuario == "Medico";
+    private bool EsAdministrador =>
+        string.Equals(RolUsuario, "Administrador", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsRecepcionista =>
+        string.Equals(RolUsuario, "Recepcionista", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsMedico =>
+        string.Equals(RolUsuario, "Medico", StringComparison.OrdinalIgnoreCase);
 
     private bool PuedeCrearTurnos =>
-        EsAdministrador || EsRecepcionista;
+        EsRecepcionista;
+
+    private bool PuedeVerTurnosHoy =>
+        EsRecepcionista || EsMedico;
 
     private bool PuedeVerAgenda =>
-        EsAdministrador || EsRecepcionista || EsMedico;
+        EsRecepcionista || EsMedico;
 
     private bool PuedeVerTurnos =>
-        EsAdministrador || EsRecepcionista;
+        EsRecepcionista;
 
     private bool PuedeVerPacientes =>
-        EsAdministrador || EsRecepcionista;
+        EsRecepcionista;
 
     private bool PuedeVerMedicos =>
+        EsAdministrador;
+
+    private bool PuedeVerEspecialidades =>
         EsAdministrador;
 
     private bool PuedeVerConsultorios =>
         EsAdministrador;
 
     private bool PuedeVerHistoriales =>
-        EsAdministrador || EsMedico;
+        EsMedico;
 
     private string SubtituloDashboard
     {
         get
         {
             if (EsAdministrador)
-                return "Resumen general del consultorio médico";
+                return "Panel de administración y configuración del sistema";
 
             if (EsRecepcionista)
                 return "Resumen operativo de pacientes, turnos y agenda";
@@ -250,7 +317,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        RolUsuario = SesionService.ObtenerRol() ?? "Recepcionista";
+        RolUsuario = SesionService.ObtenerRol() ?? string.Empty;
         await CargarDashboardAsync();
     }
 
@@ -259,16 +326,19 @@
         Cargando = true;
         MensajeError = string.Empty;
 
-        var turnosResponse = await TurnoService.ObtenerPorFechaAsync(FechaHoy);
-
-        if (!turnosResponse.Exitoso)
+        if (PuedeVerTurnosHoy)
         {
-            MensajeError = turnosResponse.Mensaje;
-            Cargando = false;
-            return;
-        }
+            var turnosResponse = await TurnoService.ObtenerPorFechaAsync(FechaHoy);
 
-        TurnosHoy = turnosResponse.Data ?? new List<Turno>();
+            if (!turnosResponse.Exitoso)
+            {
+                MensajeError = turnosResponse.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            TurnosHoy = turnosResponse.Data ?? new List<Turno>();
+        }
 
         if (PuedeVerPacientes)
         {
@@ -298,6 +368,20 @@
             CantidadMedicos = medicosResponse.Data?.Count ?? 0;
         }
 
+        if (PuedeVerEspecialidades)
+        {
+            var especialidadesResponse = await EspecialidadService.ObtenerTodosAsync();
+
+            if (!especialidadesResponse.Exitoso)
+            {
+                MensajeError = especialidadesResponse.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            CantidadEspecialidades = especialidadesResponse.Data?.Count ?? 0;
+        }
+
         if (PuedeVerConsultorios)
         {
             var consultoriosResponse = await ConsultorioService.ObtenerTodosAsync();
@@ -315,16 +399,16 @@
         Cargando = false;
     }
 
-    private static string ObtenerClaseEstado(string estado)
+    private static string ObtenerClaseEstado(EstadoTurno estado)
     {
         return estado switch
         {
-            "Confirmado" => "badge badge-success",
-            "Pendiente" => "badge badge-warning",
-            "Cancelado" => "badge badge-danger",
-            "Atendido" => "badge badge-info",
-            "Ausente" => "badge badge-danger",
-            "Reprogramado" => "badge badge-warning",
+            EstadoTurno.Confirmado => "badge badge-success",
+            EstadoTurno.Pendiente => "badge badge-warning",
+            EstadoTurno.Cancelado => "badge badge-danger",
+            EstadoTurno.Atendido => "badge badge-info",
+            EstadoTurno.Ausente => "badge badge-danger",
+            EstadoTurno.Reprogramado => "badge badge-warning",
             _ => "badge badge-info"
         };
     }
@@ -352,6 +436,16 @@
     private void IrMedicos()
     {
         Navigation.NavigateTo("/medicos");
+    }
+
+    private void IrEspecialidades()
+    {
+        Navigation.NavigateTo("/especialidades");
+    }
+
+    private void IrConsultorios()
+    {
+        Navigation.NavigateTo("/consultorios");
     }
 
     private void IrTurnos()

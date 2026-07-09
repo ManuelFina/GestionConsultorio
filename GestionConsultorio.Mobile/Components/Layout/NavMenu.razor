@@ -1,4 +1,5 @@
 ﻿@inject NavigationManager Navigation
+@inject GestionConsultorio.Mobile.Services.Interfaces.IAlertService AlertService
 @inject GestionConsultorio.Mobile.Services.Interfaces.ISesionService SesionService
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -99,7 +100,7 @@
             </div>
         </div>
 
-        <button class="nav-link logout-button" @onclick="CerrarSesion">
+        <button type="button" class="nav-link logout-button" @onclick="CerrarSesionAsync">
             <span class="nav-link-icon">🚪</span>
             <span>Cerrar sesión</span>
         </button>
@@ -154,8 +155,18 @@
         }
     }
 
-    private void CerrarSesion()
+    private async Task CerrarSesionAsync()
     {
+        var confirmado = await AlertService.ConfirmAsync(
+            "Cerrar sesión",
+            "¿Seguro que querés salir del sistema?",
+            "Sí, cerrar sesión");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
         SesionService.CerrarSesion();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
