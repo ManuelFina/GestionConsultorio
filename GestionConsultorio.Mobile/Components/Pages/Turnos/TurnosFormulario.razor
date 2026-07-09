@@ -75,9 +75,10 @@
 
                     <div>
                         <label class="form-label">Médico</label>
-                        <InputSelect class="form-control"
-                                     @bind-Value="Turno.MedicoId"
-                                     disabled="@(EspecialidadSeleccionadaId == 0 || !MedicosFiltrados.Any())">
+                        <select class="form-control"
+                                value="@Turno.MedicoId"
+                                disabled="@(EspecialidadSeleccionadaId == 0 || !MedicosFiltrados.Any())"
+                                @onchange="OnMedicoChanged">
                             <option value="0">
                                 @TextoSelectorMedico
                             </option>
@@ -88,12 +89,14 @@
                                     @medico.NombreCompleto
                                 </option>
                             }
-                        </InputSelect>
+                        </select>
                     </div>
 
                     <div>
                         <label class="form-label">Consultorio</label>
-                        <InputSelect class="form-control" @bind-Value="Turno.ConsultorioId">
+                        <select class="form-control"
+                                value="@Turno.ConsultorioId"
+                                @onchange="OnConsultorioChanged">
                             <option value="0">Seleccionar consultorio</option>
 
                             @foreach (var consultorio in Consultorios)
@@ -102,26 +105,15 @@
                                     @consultorio.Nombre
                                 </option>
                             }
-                        </InputSelect>
+                        </select>
                     </div>
 
                     <div>
                         <label class="form-label">Fecha</label>
-                        <InputDate class="form-control" @bind-Value="FechaTurno" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Hora inicio</label>
-                        <InputText class="form-control"
-                                   type="time"
-                                   @bind-Value="HoraInicioTexto" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Hora fin</label>
-                        <InputText class="form-control"
-                                   type="time"
-                                   @bind-Value="HoraFinTexto" />
+                        <input type="date"
+                               class="form-control"
+                               value="@FechaTurno.ToString("yyyy-MM-dd")"
+                               @onchange="OnFechaInputChangedAsync" />
                     </div>
 
                     @if (EsEdicion)
@@ -140,6 +132,69 @@
                     }
 
                     <div class="form-grid-full">
+                        <label class="form-label">Horarios disponibles</label>
+
+                        <div class="turno-horarios-box">
+                            <div class="turno-horarios-header">
+                                <div>
+                                    <strong>@FechaTurno.ToString("dd/MM/yyyy")</strong>
+                                    <span>@NombreMedicoSeleccionado</span>
+                                </div>
+
+                                <div class="turno-horarios-legend">
+                                    <span>
+                                        <i class="legend-dot legend-free"></i>
+                                        Libres
+                                    </span>
+
+                                    <span>
+                                        <i class="legend-dot legend-busy"></i>
+                                        Ocupados
+                                    </span>
+                                </div>
+                            </div>
+
+                            @if (!PuedeMostrarHorarios)
+                            {
+                                <p class="empty-text">
+                                    Seleccioná especialidad, médico y consultorio para ver los horarios disponibles.
+                                </p>
+                            }
+                            else if (CargandoHorarios)
+                            {
+                                <p class="empty-text">Cargando horarios disponibles...</p>
+                            }
+                            else if (!HorariosDisponibles.Any())
+                            {
+                                <p class="empty-text">No hay horarios configurados para esta fecha.</p>
+                            }
+                            else
+                            {
+                                <div class="horarios-grid">
+                                    @foreach (var horario in HorariosDisponibles)
+                                    {
+                                        <button type="button"
+                                                class="@ObtenerClaseHorario(horario)"
+                                                disabled="@(!horario.Disponible)"
+                                                @onclick="() => SeleccionarHorario(horario)">
+                                            <strong>@horario.Texto</strong>
+                                            <span>@NombreConsultorioSeleccionado</span>
+                                        </button>
+                                    }
+                                </div>
+
+                                @if (HorarioSeleccionado)
+                                {
+                                    <div class="horario-seleccionado">
+                                        Horario seleccionado:
+                                        <strong>@HoraInicioTexto - @HoraFinTexto</strong>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="form-grid-full">
                         <label class="form-label">Motivo de consulta</label>
                         <InputTextArea class="form-control"
                                        rows="4"
@@ -154,7 +209,7 @@
                     </button>
 
                     <button type="submit" class="btn btn-primary" disabled="@Guardando">
-                        @(Guardando ? "Guardando..." : "Guardar turno")
+                        @TextoBotonGuardar
                     </button>
                 </div>
             </EditForm>
@@ -166,33 +221,56 @@
     [Parameter]
     public int? TurnoId { get; set; }
 
+    private const int HoraInicioAgenda = 9;
+    private const int HoraFinAgenda = 18;
+    private const int DuracionTurnoMinutos = 30;
+
     private Turno Turno = new()
     {
-        Estado = EstadoTurno.Pendiente
+        Estado = EstadoTurno.Confirmado
     };
 
     private List<Paciente> Pacientes = new();
     private List<Especialidad> Especialidades = new();
     private List<Medico> MedicosFiltrados = new();
     private List<Consultorio> Consultorios = new();
+    private List<Turno> TurnosDelDia = new();
+    private List<HorarioDisponibleItem> HorariosDisponibles = new();
 
     private int EspecialidadSeleccionadaId;
 
     private DateTime FechaTurno = DateTime.Today;
-    private string HoraInicioTexto = "09:00";
-    private string HoraFinTexto = "09:30";
+    private string HoraInicioTexto = string.Empty;
+    private string HoraFinTexto = string.Empty;
 
     private bool Cargando = true;
+    private bool CargandoHorarios;
     private bool Guardando;
+    private bool HorarioSeleccionado;
     private string MensajeError = string.Empty;
 
     private bool EsEdicion => TurnoId.HasValue;
+
+    private bool PuedeMostrarHorarios =>
+        Turno.MedicoId > 0 &&
+        Turno.ConsultorioId > 0;
 
     private string TituloPagina => EsEdicion ? "Editar turno" : "Nuevo turno";
 
     private string SubtituloPagina => EsEdicion
         ? "Actualizá los datos del turno seleccionado"
-        : "Registrá un nuevo turno en la agenda";
+        : "Seleccioná fecha, horario y confirmá el turno";
+
+    private string TextoBotonGuardar
+    {
+        get
+        {
+            if (Guardando)
+                return EsEdicion ? "Guardando..." : "Confirmando...";
+
+            return EsEdicion ? "Guardar cambios" : "Confirmar turno";
+        }
+    }
 
     private string TextoSelectorMedico
     {
@@ -205,6 +283,24 @@
                 return "No hay médicos para esta especialidad";
 
             return "Seleccionar médico";
+        }
+    }
+
+    private string NombreMedicoSeleccionado
+    {
+        get
+        {
+            var medico = MedicosFiltrados.FirstOrDefault(m => m.Id == Turno.MedicoId);
+            return medico?.NombreCompleto ?? "Médico no seleccionado";
+        }
+    }
+
+    private string NombreConsultorioSeleccionado
+    {
+        get
+        {
+            var consultorio = Consultorios.FirstOrDefault(c => c.Id == Turno.ConsultorioId);
+            return consultorio?.Nombre ?? "Consultorio no seleccionado";
         }
     }
 
@@ -251,7 +347,11 @@
         if (EsEdicion)
         {
             await CargarTurnoParaEdicionAsync();
+            HorarioSeleccionado = true;
         }
+
+        await CargarTurnosDelDiaAsync();
+        ActualizarHorariosDisponibles();
 
         Cargando = false;
     }
@@ -293,12 +393,14 @@
     private async Task OnEspecialidadChanged(ChangeEventArgs e)
     {
         MensajeError = string.Empty;
+        ReiniciarSeleccionHorario();
 
         if (!int.TryParse(e.Value?.ToString(), out var especialidadId) || especialidadId == 0)
         {
             EspecialidadSeleccionadaId = 0;
             Turno.MedicoId = 0;
             MedicosFiltrados = new List<Medico>();
+            HorariosDisponibles = new List<HorarioDisponibleItem>();
             return;
         }
 
@@ -306,6 +408,51 @@
         Turno.MedicoId = 0;
 
         await CargarMedicosPorEspecialidadAsync(especialidadId);
+        await CargarTurnosDelDiaAsync();
+        ActualizarHorariosDisponibles();
+    }
+
+    private async Task OnMedicoChanged(ChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+        ReiniciarSeleccionHorario();
+
+        Turno.MedicoId = int.TryParse(e.Value?.ToString(), out var medicoId)
+            ? medicoId
+            : 0;
+
+        await CargarTurnosDelDiaAsync();
+        ActualizarHorariosDisponibles();
+    }
+
+    private async Task OnConsultorioChanged(ChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+        ReiniciarSeleccionHorario();
+
+        Turno.ConsultorioId = int.TryParse(e.Value?.ToString(), out var consultorioId)
+            ? consultorioId
+            : 0;
+
+        await CargarTurnosDelDiaAsync();
+        ActualizarHorariosDisponibles();
+    }
+
+    private async Task OnFechaInputChangedAsync(ChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+        ReiniciarSeleccionHorario();
+
+        if (!DateTime.TryParse(e.Value?.ToString(), out var nuevaFecha))
+        {
+            MensajeError = "Seleccioná una fecha válida.";
+            return;
+        }
+
+        FechaTurno = nuevaFecha;
+
+        await CargarTurnosDelDiaAsync();
+        ActualizarHorariosDisponibles();
     }
 
     private async Task CargarMedicosPorEspecialidadAsync(
@@ -345,6 +492,119 @@
         }
     }
 
+    private async Task CargarTurnosDelDiaAsync()
+    {
+        TurnosDelDia = new List<Turno>();
+
+        if (!PuedeMostrarHorarios)
+        {
+            return;
+        }
+
+        CargandoHorarios = true;
+
+        var fecha = DateOnly.FromDateTime(FechaTurno);
+        var resultado = await TurnoService.ObtenerPorFechaAsync(fecha);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            CargandoHorarios = false;
+            return;
+        }
+
+        TurnosDelDia = resultado.Data ?? new List<Turno>();
+        CargandoHorarios = false;
+    }
+
+    private void ActualizarHorariosDisponibles()
+    {
+        if (!PuedeMostrarHorarios)
+        {
+            HorariosDisponibles = new List<HorarioDisponibleItem>();
+            return;
+        }
+
+        HorariosDisponibles = GenerarHorariosDisponibles();
+    }
+
+    private List<HorarioDisponibleItem> GenerarHorariosDisponibles()
+    {
+        var horarios = new List<HorarioDisponibleItem>();
+
+        var inicio = new TimeOnly(HoraInicioAgenda, 0);
+        var finAgenda = new TimeOnly(HoraFinAgenda, 0);
+        var duracion = TimeSpan.FromMinutes(DuracionTurnoMinutos);
+
+        while (inicio.Add(duracion) <= finAgenda)
+        {
+            var fin = inicio.Add(duracion);
+            var ocupado = HayConflictoDeHorario(inicio, fin);
+
+            horarios.Add(new HorarioDisponibleItem
+            {
+                Inicio = inicio,
+                Fin = fin,
+                Disponible = !ocupado
+            });
+
+            inicio = fin;
+        }
+
+        return horarios;
+    }
+
+    private bool HayConflictoDeHorario(TimeOnly inicio, TimeOnly fin)
+    {
+        return TurnosDelDia.Any(turno =>
+            turno.Id != Turno.Id &&
+            TurnoBloqueaHorario(turno) &&
+            (turno.MedicoId == Turno.MedicoId ||
+             turno.ConsultorioId == Turno.ConsultorioId) &&
+            HaySolapamiento(inicio, fin, turno.HoraInicio, turno.HoraFin));
+    }
+
+    private static bool HaySolapamiento(
+        TimeOnly inicioNuevo,
+        TimeOnly finNuevo,
+        TimeOnly inicioExistente,
+        TimeOnly finExistente)
+    {
+        return inicioNuevo < finExistente &&
+               finNuevo > inicioExistente;
+    }
+
+    private static bool TurnoBloqueaHorario(Turno turno)
+    {
+        return turno.Estado != EstadoTurno.Cancelado &&
+               turno.Estado != EstadoTurno.Ausente;
+    }
+
+    private void SeleccionarHorario(HorarioDisponibleItem horario)
+    {
+        if (!horario.Disponible)
+        {
+            return;
+        }
+
+        HoraInicioTexto = horario.Inicio.ToString("HH:mm");
+        HoraFinTexto = horario.Fin.ToString("HH:mm");
+        HorarioSeleccionado = true;
+        MensajeError = string.Empty;
+    }
+
+    private void ReiniciarSeleccionHorario()
+    {
+        if (EsEdicion)
+        {
+            return;
+        }
+
+        HorarioSeleccionado = false;
+        HoraInicioTexto = string.Empty;
+        HoraFinTexto = string.Empty;
+    }
+
     private async Task GuardarAsync()
     {
         Guardando = true;
@@ -359,6 +619,11 @@
         Turno.Fecha = DateOnly.FromDateTime(FechaTurno);
         Turno.HoraInicio = TimeOnly.Parse(HoraInicioTexto);
         Turno.HoraFin = TimeOnly.Parse(HoraFinTexto);
+
+        if (!EsEdicion)
+        {
+            Turno.Estado = EstadoTurno.Confirmado;
+        }
 
         if (EsEdicion)
         {
@@ -398,21 +663,38 @@
             return false;
         }
 
+        if (!HorarioSeleccionado)
+        {
+            MensajeError = "Seleccioná un horario disponible.";
+            return false;
+        }
+
         if (!TimeOnly.TryParse(HoraInicioTexto, out var horaInicio))
         {
-            MensajeError = "Ingresá una hora de inicio válida.";
+            MensajeError = "Seleccioná una hora de inicio válida.";
             return false;
         }
 
         if (!TimeOnly.TryParse(HoraFinTexto, out var horaFin))
         {
-            MensajeError = "Ingresá una hora de fin válida.";
+            MensajeError = "Seleccioná una hora de fin válida.";
             return false;
         }
 
         if (horaInicio >= horaFin)
         {
             MensajeError = "La hora de inicio debe ser menor que la hora de fin.";
+            return false;
+        }
+
+        var horarioExiste = HorariosDisponibles.Any(h =>
+            h.Disponible &&
+            h.Inicio == horaInicio &&
+            h.Fin == horaFin);
+
+        if (!horarioExiste)
+        {
+            MensajeError = "El horario seleccionado ya no está disponible.";
             return false;
         }
 
@@ -432,15 +714,15 @@
         if (!resultado.Exitoso)
         {
             await AlertService.ErrorAsync(
-                "No se pudo crear el turno",
+                "No se pudo confirmar el turno",
                 resultado.Mensaje);
 
             return;
         }
 
         await AlertService.SuccessAsync(
-            "Turno creado",
-            "El turno se registró correctamente.");
+            "Turno confirmado",
+            "El turno quedó registrado correctamente.");
 
         Navigation.NavigateTo("/turnos");
     }
@@ -465,8 +747,33 @@
         Navigation.NavigateTo("/turnos");
     }
 
+    private string ObtenerClaseHorario(HorarioDisponibleItem horario)
+    {
+        var clase = horario.Disponible
+            ? "horario-btn horario-btn-free"
+            : "horario-btn horario-btn-busy";
+
+        if (HorarioSeleccionado &&
+            horario.Inicio.ToString("HH:mm") == HoraInicioTexto &&
+            horario.Fin.ToString("HH:mm") == HoraFinTexto)
+        {
+            clase += " horario-btn-selected";
+        }
+
+        return clase;
+    }
+
     private void Volver()
     {
         Navigation.NavigateTo("/turnos");
+    }
+
+    private class HorarioDisponibleItem
+    {
+        public TimeOnly Inicio { get; set; }
+        public TimeOnly Fin { get; set; }
+        public bool Disponible { get; set; }
+
+        public string Texto => $"{Inicio:HH:mm} - {Fin:HH:mm}";
     }
 }

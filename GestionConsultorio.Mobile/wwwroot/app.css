@@ -1372,3 +1372,140 @@ button {
 #blazor-error-ui {
     display: none;
 }
+
+/* =========================
+   HORARIOS DE TURNOS
+========================= */
+
+.turno-horarios-box {
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    padding: 18px;
+    background-color: #ffffff;
+}
+
+.turno-horarios-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+    .turno-horarios-header strong {
+        display: block;
+        color: var(--color-secondary);
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .turno-horarios-header span {
+        display: block;
+        color: var(--color-muted);
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+.turno-horarios-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+    .turno-horarios-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--color-muted);
+        font-size: 13px;
+        margin: 0;
+    }
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-free {
+    background-color: #16a34a;
+}
+
+.legend-busy {
+    background-color: #dc2626;
+}
+
+.horarios-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.horario-btn {
+    border-radius: 16px;
+    padding: 14px 12px;
+    background-color: white;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+    .horario-btn strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .horario-btn span {
+        display: block;
+        font-size: 12px;
+    }
+
+.horario-btn-free {
+    border: 1px solid #86efac;
+    color: #14532d;
+}
+
+    .horario-btn-free:hover {
+        background-color: #f0fdf4;
+        transform: translateY(-1px);
+    }
+
+.horario-btn-busy {
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    background-color: #fef2f2;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.horario-btn-selected {
+    background-color: #dcfce7;
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.horario-seleccionado {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background-color: #eff6ff;
+    color: var(--color-primary-dark);
+    font-size: 14px;
+}
+
+    .horario-seleccionado strong {
+        font-weight: 700;
+    }
+
+@media (max-width: 700px) {
+    .turno-horarios-header {
+        flex-direction: column;
+    }
+
+    .horarios-grid {
+        grid-template-columns: 1fr;
+    }
+}
