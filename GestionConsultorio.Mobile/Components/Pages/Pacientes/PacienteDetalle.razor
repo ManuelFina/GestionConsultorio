@@ -5,13 +5,13 @@
 
 @inject IPacienteService PacienteService
 @inject ITurnoService TurnoService
-@inject IHistorialClinicoService HistorialClinicoService
+@inject ISesionService SesionService
 @inject NavigationManager Navigation
 
 <div class="page-header">
     <div class="page-title">
         <h2>Detalle del paciente</h2>
-        <p>Información general, turnos e historial clínico</p>
+        <p>@SubtituloPagina</p>
     </div>
 
     <div class="actions">
@@ -19,9 +19,19 @@
             Volver
         </button>
 
-        <button class="btn btn-primary" @onclick="EditarPaciente">
-            Editar paciente
-        </button>
+        @if (PuedeEditarPaciente)
+        {
+            <button class="btn btn-primary" @onclick="EditarPaciente">
+                Editar paciente
+            </button>
+        }
+
+        @if (PuedeVerHistorialClinico)
+        {
+            <button class="btn btn-primary" @onclick="IrHistorialClinico">
+                Ver historial clínico
+            </button>
+        }
     </div>
 </div>
 
@@ -40,7 +50,15 @@
         </div>
     </div>
 }
-else if (Paciente is not null)
+else if (Paciente is null)
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="empty-text">No se encontró el paciente solicitado.</p>
+        </div>
+    </div>
+}
+else
 {
     <div class="patient-detail-grid">
         <div class="card">
@@ -87,6 +105,20 @@ else if (Paciente is not null)
                         <strong>@MostrarDato(Paciente.NumeroAfiliado)</strong>
                     </div>
                 </div>
+
+                @if (PuedeVerHistorialClinico)
+                {
+                    <div class="patient-history-cta">
+                        <div>
+                            <strong>Historial clínico del paciente</strong>
+                            <span>Consultá los registros médicos asociados a este paciente.</span>
+                        </div>
+
+                        <button class="btn btn-primary" @onclick="IrHistorialClinico">
+                            Ver historial clínico
+                        </button>
+                    </div>
+                }
             </div>
         </div>
 
@@ -124,39 +156,12 @@ else if (Paciente is not null)
                                 </div>
 
                                 <div class="turno-detail">
-                                    Motivo: @turno.MotivoConsulta
-                                </div>
-                            </div>
-                        }
-                    }
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    <div class="section-header">
-                        <div>
-                            <h3>Historial clínico</h3>
-                            <p>Registros médicos del paciente</p>
-                        </div>
-                    </div>
-
-                    @if (!Historiales.Any())
-                    {
-                        <p class="empty-text">No hay registros clínicos para este paciente.</p>
-                    }
-                    else
-                    {
-                        @foreach (var historial in Historiales.Take(5))
-                        {
-                            <div class="clinical-history-item">
-                                <div class="clinical-history-date">
-                                    @historial.FechaRegistro.ToString("dd/MM/yyyy")
+                                    Especialidad: @(turno.Medico?.Especialidad?.Nombre ?? "Sin especialidad")
                                 </div>
 
-                                <strong>@historial.Diagnostico</strong>
-
-                                <p>@historial.Tratamiento</p>
+                                <div class="turno-detail">
+                                    Consultorio: @(turno.Consultorio?.Nombre ?? "Sin consultorio")
+                                </div>
                             </div>
                         }
                     }
@@ -172,10 +177,27 @@ else if (Paciente is not null)
 
     private Paciente? Paciente;
     private List<Turno> Turnos = new();
-    private List<HistorialClinico> Historiales = new();
 
     private bool Cargando = true;
     private string MensajeError = string.Empty;
+    private string RolUsuario = string.Empty;
+
+    private bool EsRecepcionista =>
+        string.Equals(RolUsuario, "Recepcionista", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsMedico =>
+        string.Equals(RolUsuario, "Medico", StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeEditarPaciente =>
+        EsRecepcionista;
+
+    private bool PuedeVerHistorialClinico =>
+        EsMedico;
+
+    private string SubtituloPagina =>
+        EsMedico
+            ? "Información del paciente y acceso a su historial clínico"
+            : "Información general y turnos del paciente";
 
     private string InicialPaciente =>
         string.IsNullOrWhiteSpace(Paciente?.NombreCompleto)
@@ -184,6 +206,8 @@ else if (Paciente is not null)
 
     protected override async Task OnInitializedAsync()
     {
+        RolUsuario = SesionService.ObtenerRol() ?? string.Empty;
+
         await CargarDetalleAsync();
     }
 
@@ -210,17 +234,25 @@ else if (Paciente is not null)
             Turnos = turnosResponse.Data ?? new List<Turno>();
         }
 
-        var historialesResponse = await HistorialClinicoService.ObtenerPorPacienteAsync(PacienteId);
-
-        if (historialesResponse.Exitoso)
-        {
-            Historiales = historialesResponse.Data ?? new List<HistorialClinico>();
-        }
-
         Cargando = false;
     }
 
-    private static string MostrarDato(string valor)
+    private void IrHistorialClinico()
+    {
+        Navigation.NavigateTo($"/historiales/paciente/{PacienteId}");
+    }
+
+    private void EditarPaciente()
+    {
+        Navigation.NavigateTo($"/pacientes/editar/{PacienteId}");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/pacientes");
+    }
+
+    private static string MostrarDato(string? valor)
     {
         return string.IsNullOrWhiteSpace(valor) ? "No registrado" : valor;
     }
@@ -237,15 +269,5 @@ else if (Paciente is not null)
             "Reprogramado" => "badge badge-warning",
             _ => "badge badge-info"
         };
-    }
-
-    private void EditarPaciente()
-    {
-        Navigation.NavigateTo($"/pacientes/editar/{PacienteId}");
-    }
-
-    private void Volver()
-    {
-        Navigation.NavigateTo("/pacientes");
     }
 }
