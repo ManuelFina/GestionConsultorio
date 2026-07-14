@@ -1,13 +1,59 @@
-﻿using GestionConsultorio.Api.Repositories.Interfaces;
+﻿using System.Security.Claims;
+using GestionConsultorio.Api.Repositories.Interfaces;
 using GestionConsultorio.Api.Services.Interfaces;
 using GestionConsultorio.Shared.Models;
 using GestionConsultorio.Shared.Responses;
 
 namespace GestionConsultorio.Api.Services.Implementaciones;
 
-public class PacienteService(IPacienteRepository pacienteRepository) : IPacienteService
+public class PacienteService(
+    IPacienteRepository pacienteRepository,
+    IMedicoRepository medicoRepository,
+    IHttpContextAccessor httpContextAccessor) : IPacienteService
 {
     private readonly IPacienteRepository _pacienteRepository = pacienteRepository;
+    private readonly IMedicoRepository _medicoRepository = medicoRepository;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+
+    public async Task<IEnumerable<Paciente>> ObtenerTodosAsync()
+    {
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return Enumerable.Empty<Paciente>();
+
+            return await _pacienteRepository.ObtenerPorMedicoAsync(medico.Id);
+        }
+
+        return await _pacienteRepository.ObtenerTodosAsync();
+    }
+
+    public async Task<Paciente?> ObtenerPorIdAsync(int id)
+    {
+        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+
+        if (paciente is null)
+            return null;
+
+        if (UsuarioEsMedico())
+        {
+            var medico = await ObtenerMedicoLogueadoAsync();
+
+            if (medico is null)
+                return null;
+
+            var pacientesDelMedico = await _pacienteRepository.ObtenerPorMedicoAsync(medico.Id);
+
+            var perteneceAlMedico = pacientesDelMedico.Any(p => p.Id == id);
+
+            if (!perteneceAlMedico)
+                return null;
+        }
+
+        return paciente;
+    }
 
     public async Task<ResultadoOperacion<Paciente>> CrearAsync(Paciente paciente)
     {
@@ -62,6 +108,21 @@ public class PacienteService(IPacienteRepository pacienteRepository) : IPaciente
         await _pacienteRepository.ActualizarAsync(pacienteExistente);
 
         return ResultadoOperacion<Paciente>.Ok(pacienteExistente);
+    }
+
+    private bool UsuarioEsMedico()
+    {
+        return _httpContextAccessor.HttpContext?.User.IsInRole("Medico") == true;
+    }
+
+    private async Task<Medico?> ObtenerMedicoLogueadoAsync()
+    {
+        var email = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email);
+
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
+        return await _medicoRepository.ObtenerPorEmailAsync(email);
     }
 
     private static ResultadoOperacion<bool> ValidarPaciente(Paciente paciente)

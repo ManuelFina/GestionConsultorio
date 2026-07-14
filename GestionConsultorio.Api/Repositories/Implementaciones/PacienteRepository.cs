@@ -20,4 +20,14 @@ public class PacienteRepository(AppDbContext context) : Repository<Paciente>(con
         return await _context.Pacientes
             .AnyAsync(p => p.Dni == dni);
     }
+
+    public async Task<IEnumerable<Paciente>> ObtenerPorMedicoAsync(int medicoId)
+    {
+        return await _context.Turnos
+            .Where(t => t.MedicoId == medicoId)
+            .Select(t => t.Paciente!)
+            .Distinct()
+            .OrderBy(p => p.NombreCompleto)
+            .ToListAsync();
+    }
 }

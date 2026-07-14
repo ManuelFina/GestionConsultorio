@@ -22,7 +22,7 @@ public class PacientesController(
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Paciente>>> ObtenerTodos()
     {
-        var pacientes = await _pacienteRepository.ObtenerTodosAsync();
+        var pacientes = await _pacienteService.ObtenerTodosAsync();
         return Ok(pacientes);
     }
 
@@ -30,7 +30,7 @@ public class PacientesController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Paciente>> ObtenerPorId(int id)
     {
-        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+        var paciente = await _pacienteService.ObtenerPorIdAsync(id);
 
         if (paciente is null)
             return NotFound("Paciente no encontrado.");
