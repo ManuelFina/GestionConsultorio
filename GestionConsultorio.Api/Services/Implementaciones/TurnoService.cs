@@ -38,7 +38,7 @@ public class TurnoService(
 
     public async Task<Turno?> ObtenerPorIdAsync(int id)
     {
-        var turno = await _turnoRepository.ObtenerPorIdAsync(id);
+        var turno = await _turnoRepository.ObtenerPorIdConRelacionesAsync(id);
 
         if (turno is null)
             return null;

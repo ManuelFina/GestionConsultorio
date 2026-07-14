@@ -1,6 +1,5 @@
 ﻿using GestionConsultorio.Api.Data;
 using GestionConsultorio.Api.Repositories.Interfaces;
-using GestionConsultorio.Shared.Enums;
 using GestionConsultorio.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +16,12 @@ public class TurnoRepository(AppDbContext context) : Repository<Turno>(context),
             .Include(t => t.Medico!)
                 .ThenInclude(m => m.Especialidad)
             .Include(t => t.Consultorio);
+    }
+
+    public async Task<Turno?> ObtenerPorIdConRelacionesAsync(int id)
+    {
+        return await TurnosConRelaciones()
+            .FirstOrDefaultAsync(t => t.Id == id);
     }
 
     public async Task<IEnumerable<Turno>> ObtenerPorFechaAsync(DateOnly fecha)

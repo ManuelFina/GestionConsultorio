@@ -16,4 +16,5 @@ public interface ITurnoService
     Task<ResultadoOperacion<Turno>> ActualizarAsync(int id, Turno turno);
     Task<ResultadoOperacion<Turno>> CambiarEstadoAsync(int id, EstadoTurno nuevoEstado);
     Task<ResultadoOperacion<bool>> EliminarAsync(int id);
+
 }
