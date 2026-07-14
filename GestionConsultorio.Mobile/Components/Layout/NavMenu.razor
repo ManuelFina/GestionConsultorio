@@ -12,7 +12,7 @@
             </div>
 
             <div class="sidebar-brand-text">
-                <h1>Centro Medico Toay</h1>
+                <h1>Centro Médico Toay</h1>
                 <span>Sistema de Gestión</span>
             </div>
         </div>
@@ -22,7 +22,7 @@
 
             <NavLink class="nav-link" href="/dashboard" Match="NavLinkMatch.All">
                 <span class="nav-link-icon">🏠</span>
-                <span>Dashboard</span>
+                <span>Inicio</span>
             </NavLink>
 
             @if (PuedeVerAgenda)
@@ -109,21 +109,26 @@
 
 @code {
     private string NombreUsuario = "Usuario";
-    private string RolUsuario = "Recepcionista";
+    private string RolUsuario = string.Empty;
     private string InicialUsuario = "U";
 
-    private bool EsAdministrador => RolUsuario == "Administrador";
-    private bool EsRecepcionista => RolUsuario == "Recepcionista";
-    private bool EsMedico => RolUsuario == "Medico";
+    private bool EsAdministrador =>
+        string.Equals(RolUsuario, "Administrador", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsRecepcionista =>
+        string.Equals(RolUsuario, "Recepcionista", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsMedico =>
+        string.Equals(RolUsuario, "Medico", StringComparison.OrdinalIgnoreCase);
 
     private bool PuedeVerAgenda =>
-        EsAdministrador || EsRecepcionista || EsMedico;
+        EsRecepcionista || EsMedico;
 
     private bool PuedeVerTurnos =>
-        EsAdministrador || EsRecepcionista;
+        EsRecepcionista;
 
     private bool PuedeVerPacientes =>
-        EsAdministrador || EsRecepcionista;
+        EsRecepcionista || EsMedico;
 
     private bool PuedeVerMedicos =>
         EsAdministrador;
@@ -135,7 +140,7 @@
         EsAdministrador;
 
     private bool PuedeVerHistoriales =>
-        EsAdministrador || EsMedico;
+        false;
 
     private bool PuedeVerGestion =>
         PuedeVerPacientes ||
@@ -147,7 +152,7 @@
     protected override void OnInitialized()
     {
         NombreUsuario = SesionService.ObtenerNombreCompleto() ?? "Usuario";
-        RolUsuario = SesionService.ObtenerRol() ?? "Recepcionista";
+        RolUsuario = SesionService.ObtenerRol() ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(NombreUsuario))
         {
