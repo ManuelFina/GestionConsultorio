@@ -1,0 +1,657 @@
+﻿@page "/turnos/atender/{TurnoId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.DTOs.HistorialesClinicos
+@using GestionConsultorio.Shared.Enums
+@using GestionConsultorio.Shared.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ITurnoService TurnoService
+@inject IHistorialClinicoService HistorialClinicoService
+@inject IArchivoHistorialClinicoService ArchivoHistorialClinicoService
+@inject IAlertService AlertService
+@inject ISesionService SesionService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Atender turno</h2>
+        <p>Cargá la atención médica y adjuntá documentación clínica si corresponde</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="VolverAgenda">
+        Volver a agenda
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+@if (Cargando)
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="empty-text">Cargando información del turno...</p>
+        </div>
+    </div>
+}
+else if (!UsuarioEsMedico())
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="empty-text">Solo los médicos pueden atender turnos.</p>
+        </div>
+    </div>
+}
+else if (Turno is null)
+{
+    <div class="card">
+        <div class="card-body">
+            <p class="empty-text">No se encontró el turno solicitado.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="attend-layout">
+
+        <div class="card">
+            <div class="card-body">
+                <div class="attention-summary-card">
+                    <div class="attention-summary-icon">
+                        🩺
+                    </div>
+
+                    <div>
+                        <span>Paciente</span>
+                        <strong>@NombrePaciente</strong>
+                        <small>
+                            @Turno.Fecha.ToString("dd/MM/yyyy")
+                            ·
+                            @Turno.HoraInicio.ToString("HH:mm") - @Turno.HoraFin.ToString("HH:mm")
+                        </small>
+                    </div>
+                </div>
+
+                <div class="attention-info-grid">
+                    <div>
+                        <span>Médico</span>
+                        <strong>@NombreMedico</strong>
+                    </div>
+
+                    <div>
+                        <span>Especialidad</span>
+                        <strong>@NombreEspecialidad</strong>
+                    </div>
+
+                    <div>
+                        <span>Consultorio</span>
+                        <strong>@NombreConsultorio</strong>
+                    </div>
+
+                    <div>
+                        <span>Estado</span>
+                        <strong>@Turno.Estado</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                @if (AtencionGuardada)
+                {
+                    <div class="attention-success-box">
+                        <div class="attention-success-icon">
+                            ✓
+                        </div>
+
+                        <div>
+                            <h3>Atención registrada</h3>
+                            <p>
+                                El historial clínico fue creado correctamente.
+                                Ahora podés adjuntar imágenes, estudios o documentación médica.
+                            </p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="section-header">
+                        <div>
+                            <h3>Registro de atención</h3>
+                            <p>Completá los datos clínicos del turno seleccionado</p>
+                        </div>
+                    </div>
+
+                    <EditForm Model="AtencionDto" OnSubmit="GuardarAtencionAsync">
+                        <div class="form-grid">
+                            <div class="form-grid-full">
+                                <label class="form-label">Diagnóstico</label>
+                                <InputTextArea class="form-control"
+                                               rows="4"
+                                               @bind-Value="AtencionDto.Diagnostico"
+                                               placeholder="Ej: Faringitis aguda, control clínico, dolor abdominal..." />
+                            </div>
+
+                            <div class="form-grid-full">
+                                <label class="form-label">Tratamiento</label>
+                                <InputTextArea class="form-control"
+                                               rows="4"
+                                               @bind-Value="AtencionDto.Tratamiento"
+                                               placeholder="Ej: Reposo, hidratación, medicación indicada, control..." />
+                            </div>
+
+                            <div class="form-grid-full">
+                                <label class="form-label">Observaciones</label>
+                                <InputTextArea class="form-control"
+                                               rows="3"
+                                               @bind-Value="AtencionDto.Observaciones"
+                                               placeholder="Observaciones adicionales, si corresponde..." />
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" @onclick="VolverAgenda">
+                                Cancelar
+                            </button>
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@GuardandoAtencion">
+                                @(GuardandoAtencion ? "Guardando..." : "Guardar atención")
+                            </button>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="attachments-panel attachments-panel-clean">
+                    <div class="attachments-header">
+                        <div>
+                            <h4>Archivos adjuntos</h4>
+                            <p>
+                                Adjuntá estudios, imágenes o documentos relacionados con la atención.
+                            </p>
+                        </div>
+
+                        <span class="attachments-count">
+                            @(HistorialCreado?.Archivos?.Count ?? 0) archivo(s)
+                        </span>
+                    </div>
+
+                    @if (!AtencionGuardada)
+                    {
+                        <div class="attachments-empty">
+                            <div class="attachment-icon empty-icon">📎</div>
+
+                            <div>
+                                <strong>Primero guardá la atención</strong>
+                                <span>
+                                    Una vez creado el historial clínico vas a poder subir archivos con Cloudinary.
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="file-upload-card file-upload-disabled">
+                            <div class="file-upload-info">
+                                <strong>Adjuntar archivo</strong>
+                                <span>Disponible después de guardar la atención.</span>
+                            </div>
+
+                            <button type="button" class="btn btn-outline" disabled>
+                                Seleccionar archivo
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        @if (HistorialCreado?.Archivos is not null && HistorialCreado.Archivos.Any())
+                        {
+                            <div class="attachments-list">
+                                @foreach (var archivo in HistorialCreado.Archivos.OrderByDescending(a => a.FechaCarga))
+                                {
+                                    <div class="attachment-item">
+                                        <div class="attachment-icon">
+                                            @ObtenerIconoArchivo(archivo.TipoContenido)
+                                        </div>
+
+                                        <div class="attachment-content">
+                                            <strong>@archivo.NombreArchivo</strong>
+
+                                            <span>
+                                                @MostrarDato(archivo.TipoContenido)
+                                                ·
+                                                @FormatearTamanio(archivo.TamanioBytes)
+                                                ·
+                                                @archivo.FechaCarga.ToString("dd/MM/yyyy HH:mm")
+                                            </span>
+                                        </div>
+
+                                        <div class="attachment-actions">
+                                            <a class="action-btn"
+                                               href="@archivo.Url"
+                                               target="_blank">
+                                                Ver
+                                            </a>
+
+                                            <button class="action-btn action-danger"
+                                                    @onclick="@(() => EliminarArchivoAsync(archivo.Id))">
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="attachments-empty">
+                                <div class="attachment-icon empty-icon">📎</div>
+
+                                <div>
+                                    <strong>Sin archivos adjuntos</strong>
+                                    <span>Podés subir JPG, PNG, WEBP o PDF.</span>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="file-upload-card">
+                            <div class="file-upload-info">
+                                <strong>Adjuntar archivo</strong>
+                                <span>Formatos permitidos: JPG, PNG, WEBP o PDF.</span>
+                            </div>
+
+                            <label class="file-upload-button">
+                                <span>Seleccionar archivo</span>
+
+                                <InputFile class="file-upload-input"
+                                           OnChange="SubirArchivoAsync"
+                                           accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf" />
+                            </label>
+                        </div>
+
+                        @if (SubiendoArchivo)
+                        {
+                            <div class="uploading-state">
+                                <span class="uploading-dot"></span>
+                                Subiendo archivo...
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="form-actions">
+                    @if (AtencionGuardada)
+                    {
+                        <button class="btn btn-outline" @onclick="IrHistoriales">
+                            Ver historiales
+                        </button>
+
+                        <button class="btn btn-primary" @onclick="VolverAgenda">
+                            Finalizar
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int TurnoId { get; set; }
+
+    private const string ObservacionesDefault = "Sin observaciones.";
+
+    private bool Cargando = true;
+    private bool GuardandoAtencion;
+    private bool SubiendoArchivo;
+    private string MensajeError = string.Empty;
+
+    private Turno? Turno;
+    private HistorialClinico? HistorialCreado;
+
+    private AtenderTurnoDto AtencionDto = new();
+
+    private bool AtencionGuardada => HistorialCreado is not null;
+
+    private string NombrePaciente =>
+        Turno?.Paciente?.NombreCompleto ?? "Paciente sin cargar";
+
+    private string NombreMedico =>
+        Turno?.Medico?.NombreCompleto ?? "Sin médico";
+
+    private string NombreEspecialidad =>
+        Turno?.Medico?.Especialidad?.Nombre ?? "Sin especialidad";
+
+    private string NombreConsultorio =>
+        Turno?.Consultorio?.Nombre ?? "Sin consultorio";
+
+    protected override async Task OnInitializedAsync()
+    {
+        AtencionDto = new AtenderTurnoDto
+        {
+            TurnoId = TurnoId
+        };
+
+        await CargarTurnoAsync();
+    }
+
+    private async Task CargarTurnoAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        if (!UsuarioEsMedico())
+        {
+            Cargando = false;
+            return;
+        }
+
+        var resultado = await TurnoService.ObtenerPorIdAsync(TurnoId);
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Turno = resultado.Data;
+
+        if (Turno is null)
+        {
+            MensajeError = "No se encontró el turno solicitado.";
+            Cargando = false;
+            return;
+        }
+
+        if (!TurnoTieneDatosCompletos())
+        {
+            await CompletarTurnoDesdeAgendaAsync();
+        }
+
+        if (Turno.Estado == EstadoTurno.Atendido)
+        {
+            MensajeError = "Este turno ya fue atendido.";
+        }
+
+        Cargando = false;
+    }
+
+    private bool TurnoTieneDatosCompletos()
+    {
+        return Turno?.Paciente is not null &&
+               Turno.Medico is not null &&
+               Turno.Medico.Especialidad is not null &&
+               Turno.Consultorio is not null;
+    }
+
+    private async Task CompletarTurnoDesdeAgendaAsync()
+    {
+        if (Turno is null)
+        {
+            return;
+        }
+
+        var resultado = await TurnoService.ObtenerPorFechaAsync(Turno.Fecha);
+
+        if (!resultado.Exitoso)
+        {
+            return;
+        }
+
+        var turnoCompleto = resultado.Data?
+            .FirstOrDefault(t => t.Id == TurnoId);
+
+        if (turnoCompleto is not null)
+        {
+            Turno = turnoCompleto;
+        }
+    }
+
+    private async Task GuardarAtencionAsync(EditContext _)
+    {
+        if (!UsuarioEsMedico())
+        {
+            await AlertService.ErrorAsync(
+                "Acción no permitida",
+                "Solo los médicos pueden atender turnos.");
+
+            return;
+        }
+
+        if (Turno is null)
+        {
+            await AlertService.ErrorAsync(
+                "Turno inválido",
+                "No se encontró el turno que querés atender.");
+
+            return;
+        }
+
+        if (Turno.Estado == EstadoTurno.Atendido)
+        {
+            await AlertService.ErrorAsync(
+                "Turno ya atendido",
+                "Este turno ya tiene una atención registrada.");
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(AtencionDto.Diagnostico))
+        {
+            MensajeError = "Ingresá el diagnóstico.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(AtencionDto.Tratamiento))
+        {
+            MensajeError = "Ingresá el tratamiento.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(AtencionDto.Observaciones))
+        {
+            AtencionDto.Observaciones = ObservacionesDefault;
+        }
+
+        GuardandoAtencion = true;
+        MensajeError = string.Empty;
+
+        var resultado = await HistorialClinicoService.AtenderTurnoAsync(AtencionDto);
+
+        GuardandoAtencion = false;
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo atender el turno",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        HistorialCreado = resultado.Data;
+
+        if (HistorialCreado is null)
+        {
+            await AlertService.SuccessAsync(
+                "Turno atendido",
+                "La atención se registró correctamente.");
+
+            VolverAgenda();
+            return;
+        }
+
+        Turno.Estado = EstadoTurno.Atendido;
+
+        await AlertService.SuccessAsync(
+            "Turno atendido",
+            "Se registró el historial clínico correctamente. Ahora podés adjuntar archivos.");
+    }
+
+    private async Task SubirArchivoAsync(InputFileChangeEventArgs e)
+    {
+        MensajeError = string.Empty;
+
+        if (HistorialCreado is null)
+        {
+            await AlertService.ErrorAsync(
+                "Primero guardá la atención",
+                "Para adjuntar archivos primero tenés que registrar el historial clínico.");
+
+            return;
+        }
+
+        var archivo = e.File;
+
+        if (archivo is null)
+        {
+            await AlertService.ErrorAsync(
+                "Archivo inválido",
+                "Debe seleccionar un archivo.");
+
+            return;
+        }
+
+        SubiendoArchivo = true;
+
+        var resultado = await ArchivoHistorialClinicoService.SubirArchivoAsync(
+            HistorialCreado.Id,
+            archivo);
+
+        SubiendoArchivo = false;
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo subir el archivo",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Archivo subido",
+            "El archivo se adjuntó correctamente al historial clínico.");
+
+        await RecargarHistorialCreadoAsync();
+    }
+
+    private async Task EliminarArchivoAsync(int archivoId)
+    {
+        MensajeError = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar archivo",
+            "¿Seguro que querés eliminar este archivo adjunto?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        var resultado = await ArchivoHistorialClinicoService.EliminarAsync(archivoId);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar el archivo",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Archivo eliminado",
+            "El archivo se eliminó correctamente.");
+
+        await RecargarHistorialCreadoAsync();
+    }
+
+    private async Task RecargarHistorialCreadoAsync()
+    {
+        if (HistorialCreado is null)
+        {
+            return;
+        }
+
+        var historialId = HistorialCreado.Id;
+
+        var resultado = await HistorialClinicoService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            return;
+        }
+
+        var historialActualizado = resultado.Data?
+            .FirstOrDefault(h => h.Id == historialId);
+
+        if (historialActualizado is not null)
+        {
+            HistorialCreado = historialActualizado;
+        }
+    }
+
+    private bool UsuarioEsMedico()
+    {
+        return string.Equals(
+            SesionService.ObtenerRol(),
+            "Medico",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void VolverAgenda()
+    {
+        Navigation.NavigateTo("/agenda");
+    }
+
+    private void IrHistoriales()
+    {
+        Navigation.NavigateTo("/historiales");
+    }
+
+    private static string MostrarDato(string? valor, string textoAlternativo = "-")
+    {
+        return string.IsNullOrWhiteSpace(valor) ? textoAlternativo : valor;
+    }
+
+    private static string FormatearTamanio(long bytes)
+    {
+        if (bytes <= 0)
+            return "-";
+
+        if (bytes < 1024)
+            return $"{bytes} B";
+
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+
+        return $"{bytes / 1024.0 / 1024.0:F1} MB";
+    }
+
+    private static string ObtenerIconoArchivo(string? tipoContenido)
+    {
+        if (string.IsNullOrWhiteSpace(tipoContenido))
+            return "📎";
+
+        if (tipoContenido.Contains("pdf", StringComparison.OrdinalIgnoreCase))
+            return "📄";
+
+        if (tipoContenido.Contains("image", StringComparison.OrdinalIgnoreCase))
+            return "🖼️";
+
+        return "📎";
+    }
+}

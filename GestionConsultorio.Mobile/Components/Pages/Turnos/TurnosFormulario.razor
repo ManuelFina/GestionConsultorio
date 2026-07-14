@@ -176,7 +176,7 @@
                                         <button type="button"
                                                 class="@ObtenerClaseHorario(horario)"
                                                 disabled="@(!horario.Disponible)"
-                                                @onclick="() => SeleccionarHorario(horario)">
+                                                @onclick="@(() => SeleccionarHorario(horario))">
                                             <strong>@horario.Texto</strong>
                                             <span>@NombreConsultorioSeleccionado</span>
                                         </button>
@@ -192,14 +192,6 @@
                                 }
                             }
                         </div>
-                    </div>
-
-                    <div class="form-grid-full">
-                        <label class="form-label">Motivo de consulta</label>
-                        <InputTextArea class="form-control"
-                                       rows="4"
-                                       @bind-Value="Turno.MotivoConsulta"
-                                       placeholder="Ej: Control general, dolor de garganta, consulta médica..." />
                     </div>
                 </div>
 
@@ -224,10 +216,12 @@
     private const int HoraInicioAgenda = 9;
     private const int HoraFinAgenda = 18;
     private const int DuracionTurnoMinutos = 30;
+    private const string MotivoConsultaDefault = "No especificado";
 
     private Turno Turno = new()
     {
-        Estado = EstadoTurno.Confirmado
+        Estado = EstadoTurno.Confirmado,
+        MotivoConsulta = MotivoConsultaDefault
     };
 
     private List<Paciente> Pacientes = new();
@@ -367,7 +361,16 @@
             return;
         }
 
-        Turno = turnoResponse.Data ?? new Turno();
+        Turno = turnoResponse.Data ?? new Turno
+        {
+            Estado = EstadoTurno.Confirmado,
+            MotivoConsulta = MotivoConsultaDefault
+        };
+
+        if (string.IsNullOrWhiteSpace(Turno.MotivoConsulta))
+        {
+            Turno.MotivoConsulta = MotivoConsultaDefault;
+        }
 
         FechaTurno = Turno.Fecha.ToDateTime(TimeOnly.MinValue);
         HoraInicioTexto = Turno.HoraInicio.ToString("HH:mm");
@@ -610,6 +613,11 @@
         Guardando = true;
         MensajeError = string.Empty;
 
+        if (string.IsNullOrWhiteSpace(Turno.MotivoConsulta))
+        {
+            Turno.MotivoConsulta = MotivoConsultaDefault;
+        }
+
         if (!ValidarFormulario())
         {
             Guardando = false;
@@ -695,12 +703,6 @@
         if (!horarioExiste)
         {
             MensajeError = "El horario seleccionado ya no está disponible.";
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(Turno.MotivoConsulta))
-        {
-            MensajeError = "Ingresá el motivo de consulta.";
             return false;
         }
 

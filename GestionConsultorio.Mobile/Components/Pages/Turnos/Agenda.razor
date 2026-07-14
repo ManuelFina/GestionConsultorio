@@ -1,12 +1,10 @@
 ﻿@page "/agenda"
 
 @using GestionConsultorio.Mobile.Services.Interfaces
-@using GestionConsultorio.Shared.DTOs.HistorialesClinicos
 @using GestionConsultorio.Shared.Enums
 @using GestionConsultorio.Shared.Models
 
 @inject ITurnoService TurnoService
-@inject IHistorialClinicoService HistorialClinicoService
 @inject IAlertService AlertService
 @inject ISesionService SesionService
 @inject NavigationManager Navigation
@@ -17,9 +15,12 @@
         <p>Vista diaria de turnos programados</p>
     </div>
 
-    <button class="btn btn-primary" @onclick="IrNuevoTurno">
-        + Nuevo turno
-    </button>
+    @if (UsuarioEsRecepcionista())
+    {
+        <button class="btn btn-primary" @onclick="IrNuevoTurno">
+            + Nuevo turno
+        </button>
+    }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(MensajeError))
@@ -29,219 +30,170 @@
     </div>
 }
 
-@if (UsuarioEsMedico() && TurnoEnAtencion is not null)
+@if (!UsuarioPuedeVerAgenda())
 {
-    <div class="card" style="margin-bottom: 20px;">
+    <div class="card">
         <div class="card-body">
-            <div class="section-header">
-                <div>
-                    <h3>Atender turno</h3>
-                    <p>
-                        Paciente:
-                        <strong>@(TurnoEnAtencion.Paciente?.NombreCompleto ?? "Paciente sin cargar")</strong>
-                    </p>
-                </div>
+            <p class="empty-text">No tenés permisos para ver la agenda.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="agenda-grid">
+        <div class="card agenda-day-card">
+            <div class="agenda-date-box">
+                <span>Fecha seleccionada</span>
+                <strong>@FechaSeleccionada.ToString("dd/MM/yyyy")</strong>
+            </div>
 
-                <button class="btn btn-outline" @onclick="CancelarAtencion">
-                    Cerrar
+            <div class="agenda-date-control">
+                <label class="form-label">Cambiar fecha</label>
+                <InputDate class="form-control" @bind-Value="FechaSeleccionada" />
+            </div>
+
+            <div class="agenda-view-action">
+                <button class="btn btn-primary" @onclick="CargarAgendaAsync">
+                    Ver agenda
                 </button>
             </div>
 
-            <EditForm Model="AtencionDto" OnValidSubmit="GuardarAtencionAsync">
-                <DataAnnotationsValidator />
-
-                <div class="form-grid">
-                    <div>
-                        <label class="form-label">Diagnóstico</label>
-                        <InputTextArea class="form-control"
-                                       @bind-Value="AtencionDto.Diagnostico"
-                                       placeholder="Ej: Faringitis aguda" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Tratamiento</label>
-                        <InputTextArea class="form-control"
-                                       @bind-Value="AtencionDto.Tratamiento"
-                                       placeholder="Ej: Reposo, hidratación y control de fiebre" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Observaciones</label>
-                        <InputTextArea class="form-control"
-                                       @bind-Value="AtencionDto.Observaciones"
-                                       placeholder="Observaciones adicionales" />
-                    </div>
+            <div class="agenda-summary">
+                <div>
+                    <span>Total turnos</span>
+                    <strong>@Turnos.Count</strong>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" @onclick="CancelarAtencion">
-                        Cancelar
-                    </button>
+                <div>
+                    <span>Pendientes</span>
+                    <strong>@CantidadPendientes</strong>
+                </div>
 
-                    <button type="submit" class="btn btn-primary" disabled="@GuardandoAtencion">
-                        @(GuardandoAtencion ? "Guardando..." : "Guardar atención")
+                <div>
+                    <span>Confirmados</span>
+                    <strong>@CantidadConfirmados</strong>
+                </div>
+
+                <div>
+                    <span>Atendidos</span>
+                    <strong>@CantidadAtendidos</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="section-header">
+                    <div>
+                        <h3>Turnos del día</h3>
+                        <p>Agenda correspondiente al @FechaSeleccionada.ToString("dd/MM/yyyy")</p>
+                    </div>
+
+                    <button class="btn btn-outline" @onclick="CargarAgendaAsync">
+                        Actualizar
                     </button>
                 </div>
-            </EditForm>
+
+                @if (Cargando)
+                {
+                    <p class="empty-text">Cargando agenda...</p>
+                }
+                else if (!Turnos.Any())
+                {
+                    <p class="empty-text">No hay turnos programados para esta fecha.</p>
+                }
+                else
+                {
+                    <div class="agenda-timeline">
+                        @foreach (var turno in TurnosOrdenados)
+                        {
+                            <div class="agenda-timeline-item">
+                                <div class="agenda-hour">
+                                    @turno.HoraInicio.ToString("HH:mm")
+                                </div>
+
+                                <div class="agenda-card">
+                                    <div class="agenda-card-header">
+                                        <div>
+                                            <strong>@(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")</strong>
+                                            <span>@turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")</span>
+                                        </div>
+
+                                        <span class="@ObtenerClaseEstado(turno.Estado)">
+                                            @turno.Estado
+                                        </span>
+                                    </div>
+
+                                    <div class="agenda-info-grid">
+                                        <div>
+                                            <span>Médico</span>
+                                            <strong>@(turno.Medico?.NombreCompleto ?? "Sin médico")</strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Especialidad</span>
+                                            <strong>@(turno.Medico?.Especialidad?.Nombre ?? "Sin especialidad")</strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Consultorio</span>
+                                            <strong>@(turno.Consultorio?.Nombre ?? "Sin consultorio")</strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Estado</span>
+                                            <strong>@turno.Estado</strong>
+                                        </div>
+                                    </div>
+
+                                    @if (TieneAcciones(turno))
+                                    {
+                                        <div class="actions agenda-actions">
+                                            @if (PuedeAtender(turno))
+                                            {
+                                                <button class="action-btn" @onclick="@(() => IrAtenderTurno(turno.Id))">
+                                                    Atender
+                                                </button>
+                                            }
+
+                                            @if (PuedeMarcarAusente(turno))
+                                            {
+                                                <button class="action-btn" @onclick="@(() => MarcarAusenteAsync(turno.Id))">
+                                                    Ausente
+                                                </button>
+                                            }
+
+                                            @if (PuedeEditar(turno))
+                                            {
+                                                <button class="action-btn" @onclick="@(() => EditarTurno(turno.Id))">
+                                                    Editar
+                                                </button>
+                                            }
+
+                                            @if (PuedeCancelar(turno))
+                                            {
+                                                <button class="action-btn action-danger" @onclick="@(() => CancelarAsync(turno.Id))">
+                                                    Cancelar
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
         </div>
     </div>
 }
 
-<div class="agenda-grid">
-    <div class="card agenda-day-card">
-        <div class="agenda-date-box">
-            <span>Fecha seleccionada</span>
-            <strong>@FechaSeleccionada.ToString("dd/MM/yyyy")</strong>
-        </div>
-
-        <div style="margin-top: 18px;">
-            <label class="form-label">Cambiar fecha</label>
-            <InputDate class="form-control" @bind-Value="FechaSeleccionada" />
-        </div>
-
-        <div class="form-actions" style="justify-content: stretch;">
-            <button class="btn btn-primary" style="width: 100%;" @onclick="CargarAgendaAsync">
-                Ver agenda
-            </button>
-        </div>
-
-        <div class="agenda-summary">
-            <div>
-                <span>Total turnos</span>
-                <strong>@Turnos.Count</strong>
-            </div>
-
-            <div>
-                <span>Pendientes</span>
-                <strong>@CantidadPendientes</strong>
-            </div>
-
-            <div>
-                <span>Confirmados</span>
-                <strong>@CantidadConfirmados</strong>
-            </div>
-
-            <div>
-                <span>Atendidos</span>
-                <strong>@CantidadAtendidos</strong>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-body">
-            <div class="section-header">
-                <div>
-                    <h3>Turnos del día</h3>
-                    <p>Agenda correspondiente al @FechaSeleccionada.ToString("dd/MM/yyyy")</p>
-                </div>
-
-                <button class="btn btn-outline" @onclick="CargarAgendaAsync">
-                    Actualizar
-                </button>
-            </div>
-
-            @if (Cargando)
-            {
-                <p class="empty-text">Cargando agenda...</p>
-            }
-            else if (!Turnos.Any())
-            {
-                <p class="empty-text">No hay turnos programados para esta fecha.</p>
-            }
-            else
-            {
-                <div class="agenda-timeline">
-                    @foreach (var turno in TurnosOrdenados)
-                    {
-                        <div class="agenda-timeline-item">
-                            <div class="agenda-hour">
-                                @turno.HoraInicio.ToString("HH:mm")
-                            </div>
-
-                            <div class="agenda-card">
-                                <div class="agenda-card-header">
-                                    <div>
-                                        <strong>@(turno.Paciente?.NombreCompleto ?? "Paciente sin cargar")</strong>
-                                        <span>@turno.HoraInicio.ToString("HH:mm") - @turno.HoraFin.ToString("HH:mm")</span>
-                                    </div>
-
-                                    <span class="@ObtenerClaseEstado(turno.Estado)">
-                                        @turno.Estado
-                                    </span>
-                                </div>
-
-                                <div class="agenda-info-grid">
-                                    <div>
-                                        <span>Médico</span>
-                                        <strong>@(turno.Medico?.NombreCompleto ?? "Sin médico")</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Especialidad</span>
-                                        <strong>@(turno.Medico?.Especialidad?.Nombre ?? "Sin especialidad")</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Consultorio</span>
-                                        <strong>@(turno.Consultorio?.Nombre ?? "Sin consultorio")</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Motivo</span>
-                                        <strong>@MostrarDato(turno.MotivoConsulta)</strong>
-                                    </div>
-                                </div>
-
-                                <div class="actions agenda-actions">
-
-                                    @if (PuedeAtender(turno))
-                                    {
-                                        <button class="action-btn" @onclick="() => AbrirAtencion(turno)">
-                                            Atender
-                                        </button>
-                                    }
-
-                                    @if (PuedeMarcarAusente(turno))
-                                    {
-                                        <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
-                                            Ausente
-                                        </button>
-                                    }
-
-                                    @if (PuedeEditar(turno))
-                                    {
-                                        <button class="action-btn" @onclick="() => EditarTurno(turno.Id)">
-                                            Editar
-                                        </button>
-                                    }
-
-                                    @if (PuedeCancelar(turno))
-                                    {
-                                        <button class="action-btn action-danger" @onclick="() => CancelarAsync(turno.Id)">
-                                            Cancelar
-                                        </button>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
-</div>
-
 @code {
     private bool Cargando = true;
-    private bool GuardandoAtencion;
     private string MensajeError = string.Empty;
 
     private DateTime FechaSeleccionada = DateTime.Today;
     private List<Turno> Turnos = new();
-
-    private Turno? TurnoEnAtencion;
-    private AtenderTurnoDto AtencionDto = new();
 
     private IEnumerable<Turno> TurnosOrdenados =>
         Turnos.OrderBy(t => t.HoraInicio);
@@ -257,11 +209,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!UsuarioPuedeVerAgenda())
+        {
+            Cargando = false;
+            return;
+        }
+
         await CargarAgendaAsync();
     }
 
     private async Task CargarAgendaAsync()
     {
+        if (!UsuarioPuedeVerAgenda())
+        {
+            MensajeError = "No tenés permisos para ver la agenda.";
+            Cargando = false;
+            return;
+        }
+
         Cargando = true;
         MensajeError = string.Empty;
 
@@ -277,78 +242,6 @@
 
         Turnos = resultado.Data ?? new List<Turno>();
         Cargando = false;
-    }
-
-    private async Task ConfirmarAsync(int id)
-    {
-        var resultado = await TurnoService.ConfirmarAsync(id);
-
-        await ProcesarAccionAsync(
-            resultado,
-            "Turno confirmado",
-            "El turno fue confirmado correctamente.");
-    }
-
-    private void AbrirAtencion(Turno turno)
-    {
-        if (!UsuarioEsMedico())
-        {
-            MensajeError = "Solo los médicos pueden atender turnos.";
-            return;
-        }
-
-        MensajeError = string.Empty;
-        TurnoEnAtencion = turno;
-
-        AtencionDto = new AtenderTurnoDto
-        {
-            TurnoId = turno.Id
-        };
-    }
-
-    private void CancelarAtencion()
-    {
-        TurnoEnAtencion = null;
-        AtencionDto = new AtenderTurnoDto();
-        MensajeError = string.Empty;
-    }
-
-    private async Task GuardarAtencionAsync()
-    {
-        if (!UsuarioEsMedico())
-        {
-            await AlertService.ErrorAsync(
-                "Acción no permitida",
-                "Solo los médicos pueden atender turnos.");
-
-            return;
-        }
-
-        GuardandoAtencion = true;
-        MensajeError = string.Empty;
-
-        var resultado = await HistorialClinicoService.AtenderTurnoAsync(AtencionDto);
-
-        if (!resultado.Exitoso)
-        {
-            GuardandoAtencion = false;
-
-            await AlertService.ErrorAsync(
-                "No se pudo atender el turno",
-                resultado.Mensaje);
-
-            return;
-        }
-
-        await AlertService.SuccessAsync(
-            "Turno atendido",
-            "Se registró el historial clínico correctamente.");
-
-        GuardandoAtencion = false;
-        TurnoEnAtencion = null;
-        AtencionDto = new AtenderTurnoDto();
-
-        await CargarAgendaAsync();
     }
 
     private async Task MarcarAusenteAsync(int id)
@@ -421,11 +314,50 @@
         Navigation.NavigateTo($"/turnos/editar/{id}");
     }
 
+    private void IrAtenderTurno(int id)
+    {
+        Navigation.NavigateTo($"/turnos/atender/{id}");
+    }
+
+    private bool TieneAcciones(Turno turno)
+    {
+        return PuedeAtender(turno) ||
+               PuedeMarcarAusente(turno) ||
+               PuedeEditar(turno) ||
+               PuedeCancelar(turno);
+    }
+
     private bool PuedeAtender(Turno turno)
     {
         return UsuarioEsMedico() &&
                (turno.Estado == EstadoTurno.Pendiente ||
                 turno.Estado == EstadoTurno.Confirmado);
+    }
+
+    private bool PuedeMarcarAusente(Turno turno)
+    {
+        return UsuarioEsRecepcionista() &&
+               (turno.Estado == EstadoTurno.Pendiente ||
+                turno.Estado == EstadoTurno.Confirmado);
+    }
+
+    private bool PuedeEditar(Turno turno)
+    {
+        return UsuarioEsRecepcionista() &&
+               (turno.Estado == EstadoTurno.Pendiente ||
+                turno.Estado == EstadoTurno.Confirmado);
+    }
+
+    private bool PuedeCancelar(Turno turno)
+    {
+        return UsuarioEsRecepcionista() &&
+               (turno.Estado == EstadoTurno.Pendiente ||
+                turno.Estado == EstadoTurno.Confirmado);
+    }
+
+    private bool UsuarioPuedeVerAgenda()
+    {
+        return UsuarioEsRecepcionista() || UsuarioEsMedico();
     }
 
     private bool UsuarioEsMedico()
@@ -436,32 +368,12 @@
             StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool PuedeConfirmar(Turno turno)
+    private bool UsuarioEsRecepcionista()
     {
-        return turno.Estado == EstadoTurno.Pendiente;
-    }
-
-    private static bool PuedeMarcarAusente(Turno turno)
-    {
-        return turno.Estado == EstadoTurno.Pendiente ||
-               turno.Estado == EstadoTurno.Confirmado;
-    }
-
-    private static bool PuedeEditar(Turno turno)
-    {
-        return turno.Estado == EstadoTurno.Pendiente ||
-               turno.Estado == EstadoTurno.Confirmado;
-    }
-
-    private static bool PuedeCancelar(Turno turno)
-    {
-        return turno.Estado == EstadoTurno.Pendiente ||
-               turno.Estado == EstadoTurno.Confirmado;
-    }
-
-    private static string MostrarDato(string? valor)
-    {
-        return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
+        return string.Equals(
+            SesionService.ObtenerRol(),
+            "Recepcionista",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ObtenerClaseEstado(EstadoTurno estado)
