@@ -45,7 +45,7 @@
     @if (PuedeVerPacientes)
     {
         <div class="stat-card">
-            <span>Pacientes registrados</span>
+            <span>@TituloStatPacientes</span>
             <strong>@CantidadPacientes</strong>
         </div>
     }
@@ -208,7 +208,7 @@
                             <button class="quick-action-card" @onclick="IrPacientes">
                                 <span>👥</span>
                                 <strong>Pacientes</strong>
-                                <small>Registrar y consultar pacientes</small>
+                                <small>@TextoAccesoPacientes</small>
                             </button>
                         }
 
@@ -227,15 +227,6 @@
                                 <span>📅</span>
                                 <strong>Agenda</strong>
                                 <small>Consultar agenda diaria</small>
-                            </button>
-                        }
-
-                        @if (PuedeVerHistoriales)
-                        {
-                            <button class="quick-action-card" @onclick="IrHistoriales">
-                                <span>📋</span>
-                                <strong>Historial clínico</strong>
-                                <small>Consultar registros médicos</small>
                             </button>
                         }
                     </div>
@@ -284,7 +275,7 @@
         EsRecepcionista;
 
     private bool PuedeVerPacientes =>
-        EsRecepcionista;
+        EsRecepcionista || EsMedico;
 
     private bool PuedeVerMedicos =>
         EsAdministrador;
@@ -295,8 +286,15 @@
     private bool PuedeVerConsultorios =>
         EsAdministrador;
 
-    private bool PuedeVerHistoriales =>
-        EsMedico;
+    private string TituloStatPacientes =>
+        EsMedico
+            ? "Mis pacientes"
+            : "Pacientes registrados";
+
+    private string TextoAccesoPacientes =>
+        EsMedico
+            ? "Consultar pacientes asociados a tus turnos"
+            : "Registrar y consultar pacientes";
 
     private string SubtituloDashboard
     {
@@ -309,7 +307,7 @@
                 return "Resumen operativo de pacientes, turnos y agenda";
 
             if (EsMedico)
-                return "Resumen de agenda e historiales clínicos";
+                return "Resumen de agenda y pacientes asignados";
 
             return "Resumen del sistema";
         }
@@ -451,10 +449,5 @@
     private void IrTurnos()
     {
         Navigation.NavigateTo("/turnos");
-    }
-
-    private void IrHistoriales()
-    {
-        Navigation.NavigateTo("/historiales");
     }
 }
