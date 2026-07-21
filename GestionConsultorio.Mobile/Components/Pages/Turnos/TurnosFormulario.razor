@@ -499,10 +499,7 @@
     {
         TurnosDelDia = new List<Turno>();
 
-        if (!PuedeMostrarHorarios)
-        {
-            return;
-        }
+        if (!PuedeMostrarHorarios) return;
 
         CargandoHorarios = true;
 
@@ -598,10 +595,7 @@
 
     private void ReiniciarSeleccionHorario()
     {
-        if (EsEdicion)
-        {
-            return;
-        }
+        if (EsEdicion) return;
 
         HorarioSeleccionado = false;
         HoraInicioTexto = string.Empty;
@@ -628,20 +622,11 @@
         Turno.HoraInicio = TimeOnly.Parse(HoraInicioTexto);
         Turno.HoraFin = TimeOnly.Parse(HoraFinTexto);
 
-        if (!EsEdicion)
-        {
-            Turno.Estado = EstadoTurno.Confirmado;
-        }
+        if (!EsEdicion) Turno.Estado = EstadoTurno.Confirmado;
 
-        if (EsEdicion)
-        {
-            await ActualizarTurnoAsync();
-        }
-        else
-        {
-            await CrearTurnoAsync();
-        }
-
+        if (EsEdicion) await ActualizarTurnoAsync();
+        else await CrearTurnoAsync();
+        
         Guardando = false;
     }
 
