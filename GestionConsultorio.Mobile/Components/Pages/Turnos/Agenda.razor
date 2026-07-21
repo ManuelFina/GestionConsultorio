@@ -158,7 +158,7 @@ else
 
                                             @if (PuedeMarcarAusente(turno))
                                             {
-                                                <button class="action-btn" @onclick="@(() => MarcarAusenteAsync(turno.Id))">
+                                                <button class="action-btn action-warning" @onclick="@(() => MarcarAusenteAsync(turno.Id))">
                                                     Ausente
                                                 </button>
                                             }
@@ -330,29 +330,37 @@ else
     private bool PuedeAtender(Turno turno)
     {
         return UsuarioEsMedico() &&
-               (turno.Estado == EstadoTurno.Pendiente ||
-                turno.Estado == EstadoTurno.Confirmado);
+               TurnoDisponibleParaAccionMedica(turno);
     }
 
     private bool PuedeMarcarAusente(Turno turno)
     {
-        return UsuarioEsRecepcionista() &&
-               (turno.Estado == EstadoTurno.Pendiente ||
-                turno.Estado == EstadoTurno.Confirmado);
+        return UsuarioEsMedico() &&
+               TurnoDisponibleParaAccionMedica(turno);
     }
 
     private bool PuedeEditar(Turno turno)
     {
         return UsuarioEsRecepcionista() &&
-               (turno.Estado == EstadoTurno.Pendiente ||
-                turno.Estado == EstadoTurno.Confirmado);
+               TurnoDisponibleParaGestion(turno);
     }
 
     private bool PuedeCancelar(Turno turno)
     {
         return UsuarioEsRecepcionista() &&
-               (turno.Estado == EstadoTurno.Pendiente ||
-                turno.Estado == EstadoTurno.Confirmado);
+               TurnoDisponibleParaGestion(turno);
+    }
+
+    private static bool TurnoDisponibleParaAccionMedica(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
+    }
+
+    private static bool TurnoDisponibleParaGestion(Turno turno)
+    {
+        return turno.Estado == EstadoTurno.Pendiente ||
+               turno.Estado == EstadoTurno.Confirmado;
     }
 
     private bool UsuarioPuedeVerAgenda()
