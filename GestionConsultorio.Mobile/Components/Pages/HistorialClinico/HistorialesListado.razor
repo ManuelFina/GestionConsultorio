@@ -216,6 +216,7 @@
 </div>
 
 @code {
+
     [Parameter]
     public int? PacienteId { get; set; }
 
@@ -287,10 +288,7 @@
             "¿Seguro que querés eliminar este registro clínico?",
             "Sí, eliminar");
 
-        if (!confirmado)
-        {
-            return;
-        }
+        if (!confirmado) return;
 
         var resultado = await HistorialClinicoService.EliminarAsync(id);
 
@@ -359,11 +357,8 @@
             "¿Seguro que querés eliminar este archivo adjunto?",
             "Sí, eliminar");
 
-        if (!confirmado)
-        {
-            return;
-        }
-
+        if (!confirmado) return;
+        
         var resultado = await ArchivoHistorialClinicoService.EliminarAsync(archivoId);
 
         if (!resultado.Exitoso)
@@ -400,14 +395,11 @@
 
     private static string FormatearTamanio(long bytes)
     {
-        if (bytes <= 0)
-            return "-";
+        if (bytes <= 0) return "-";
 
-        if (bytes < 1024)
-            return $"{bytes} B";
+        if (bytes < 1024) return $"{bytes} B";
 
-        if (bytes < 1024 * 1024)
-            return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
 
         return $"{bytes / 1024.0 / 1024.0:F1} MB";
     }
