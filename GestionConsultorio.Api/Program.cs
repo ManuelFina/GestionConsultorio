@@ -110,6 +110,15 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/", () => Results.Ok("API Centro Médico Toay funcionando."));
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    app = "Centro Médico Toay API",
+    date = DateTime.Now
+}));
+
 app.MapControllers();
 
 app.Run();
