@@ -47,10 +47,6 @@
                 <button class="btn btn-outline" @onclick="CargarTurnosPorFechaAsync">
                     Filtrar fecha
                 </button>
-
-                <button class="btn btn-outline" @onclick="CargarTodosAsync">
-                    Ver todos
-                </button>
             </div>
         </div>
 
@@ -121,12 +117,6 @@
                                     @if (HayAccionesDisponibles(turno))
                                     {
                                         <div class="actions">
-                                            @if (PuedeMarcarAusente(turno))
-                                            {
-                                                <button class="action-btn" @onclick="() => MarcarAusenteAsync(turno.Id)">
-                                                    Ausente
-                                                </button>
-                                            }
 
                                             @if (PuedeEditar(turno))
                                             {
