@@ -23,6 +23,8 @@ public class TurnoService(
 
     public async Task<IEnumerable<Turno>> ObtenerTodosAsync()
     {
+        await ActualizarTurnosVencidosAsync();
+
         if (UsuarioEsMedico())
         {
             var medico = await ObtenerMedicoLogueadoAsync();
@@ -38,6 +40,8 @@ public class TurnoService(
 
     public async Task<Turno?> ObtenerPorIdAsync(int id)
     {
+        await ActualizarTurnosVencidosAsync();
+
         var turno = await _turnoRepository.ObtenerPorIdConRelacionesAsync(id);
 
         if (turno is null)
@@ -59,6 +63,8 @@ public class TurnoService(
 
     public async Task<IEnumerable<Turno>> ObtenerPorFechaAsync(DateOnly fecha)
     {
+        await ActualizarTurnosVencidosAsync();
+
         if (UsuarioEsMedico())
         {
             var medico = await ObtenerMedicoLogueadoAsync();
@@ -78,6 +84,8 @@ public class TurnoService(
 
     public async Task<IEnumerable<Turno>> ObtenerPorMedicoAsync(int medicoId)
     {
+        await ActualizarTurnosVencidosAsync();
+
         if (UsuarioEsMedico())
         {
             var medico = await ObtenerMedicoLogueadoAsync();
@@ -94,6 +102,8 @@ public class TurnoService(
 
     public async Task<IEnumerable<Turno>> ObtenerPorPacienteAsync(int pacienteId)
     {
+        await ActualizarTurnosVencidosAsync();
+
         var turnos = await _turnoRepository.ObtenerPorPacienteAsync(pacienteId);
 
         if (UsuarioEsMedico())
@@ -110,9 +120,10 @@ public class TurnoService(
 
         return turnos;
     }
-
     public async Task<ResultadoOperacion<Turno>> CrearAsync(Turno turno)
     {
+        await ActualizarTurnosVencidosAsync();
+
         var validacion = await ValidarTurnoAsync(turno);
 
         if (!validacion.Exitoso)
@@ -124,9 +135,10 @@ public class TurnoService(
 
         return ResultadoOperacion<Turno>.Ok(turno);
     }
-
     public async Task<ResultadoOperacion<Turno>> ActualizarAsync(int id, Turno turno)
     {
+        await ActualizarTurnosVencidosAsync();
+
         if (id != turno.Id)
             return ResultadoOperacion<Turno>.Error("El ID de la ruta no coincide con el ID del turno.");
 
@@ -153,9 +165,10 @@ public class TurnoService(
 
         return ResultadoOperacion<Turno>.Ok(turnoExistente);
     }
-
     public async Task<ResultadoOperacion<Turno>> CambiarEstadoAsync(int id, EstadoTurno nuevoEstado)
     {
+        await ActualizarTurnosVencidosAsync();
+
         var turno = await _turnoRepository.ObtenerPorIdAsync(id);
 
         if (turno is null)
@@ -201,10 +214,10 @@ public class TurnoService(
         if (turno.HoraInicio >= turno.HoraFin)
             return ResultadoOperacion<bool>.Error("La hora de inicio debe ser menor que la hora de fin.");
 
-        var paciente = await _pacienteRepository.ObtenerPorIdAsync(turno.PacienteId);
+        var paciente = await _pacienteRepository.ObtenerActivoPorIdAsync(turno.PacienteId);
 
         if (paciente is null)
-            return ResultadoOperacion<bool>.Error("El paciente seleccionado no existe.");
+            return ResultadoOperacion<bool>.Error("El paciente seleccionado no existe o se encuentra dado de baja.");
 
         var medico = await _medicoRepository.ObtenerPorIdAsync(turno.MedicoId);
 
@@ -270,5 +283,9 @@ public class TurnoService(
             return null;
 
         return await _medicoRepository.ObtenerPorEmailAsync(email);
+    }
+    private async Task ActualizarTurnosVencidosAsync()
+    {
+        await _turnoRepository.MarcarTurnosVencidosComoAusentesAsync();
     }
 }

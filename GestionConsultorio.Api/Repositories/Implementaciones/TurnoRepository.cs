@@ -1,5 +1,6 @@
 ﻿using GestionConsultorio.Api.Data;
 using GestionConsultorio.Api.Repositories.Interfaces;
+using GestionConsultorio.Shared.Enums;
 using GestionConsultorio.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -61,8 +62,35 @@ public class TurnoRepository(AppDbContext context) : Repository<Turno>(context),
         return await _context.Turnos.AnyAsync(t =>
             (!turnoIdExcluir.HasValue || t.Id != turnoIdExcluir.Value) &&
             t.Fecha == fecha &&
+            t.Estado != EstadoTurno.Cancelado &&
+            t.Estado != EstadoTurno.Ausente &&
             (t.MedicoId == medicoId || t.ConsultorioId == consultorioId) &&
             t.HoraInicio < horaFin &&
             horaInicio < t.HoraFin);
+    }
+
+    public async Task MarcarTurnosVencidosComoAusentesAsync()
+    {
+        var hoy = DateOnly.FromDateTime(DateTime.Now);
+        var horaActual = TimeOnly.FromDateTime(DateTime.Now);
+
+        var turnosVencidos = await _context.Turnos
+            .Where(t =>
+                (t.Estado == EstadoTurno.Pendiente || t.Estado == EstadoTurno.Confirmado) &&
+                (
+                    t.Fecha < hoy ||
+                    (t.Fecha == hoy && t.HoraFin <= horaActual)
+                ))
+            .ToListAsync();
+
+        if (!turnosVencidos.Any())
+            return;
+
+        foreach (var turno in turnosVencidos)
+        {
+            turno.Estado = EstadoTurno.Ausente;
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

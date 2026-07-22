@@ -16,4 +16,5 @@ public interface ITurnoRepository : IRepository<Turno>
         TimeOnly horaInicio,
         TimeOnly horaFin,
         int? turnoIdExcluir = null);
+    Task MarcarTurnosVencidosComoAusentesAsync();
 }
