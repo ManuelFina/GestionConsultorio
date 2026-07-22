@@ -7,9 +7,15 @@ public interface IPacienteService
 {
     Task<IEnumerable<Paciente>> ObtenerTodosAsync();
 
+    Task<IEnumerable<Paciente>> ObtenerInactivosAsync();
+
     Task<Paciente?> ObtenerPorIdAsync(int id);
 
     Task<ResultadoOperacion<Paciente>> CrearAsync(Paciente paciente);
 
     Task<ResultadoOperacion<Paciente>> ActualizarAsync(int id, Paciente paciente);
+
+    Task<ResultadoOperacion<bool>> EliminarAsync(int id);
+
+    Task<ResultadoOperacion<bool>> ReactivarAsync(int id);
 }

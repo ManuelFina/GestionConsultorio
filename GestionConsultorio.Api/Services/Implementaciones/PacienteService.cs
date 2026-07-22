@@ -27,12 +27,15 @@ public class PacienteService(
             return await _pacienteRepository.ObtenerPorMedicoAsync(medico.Id);
         }
 
-        return await _pacienteRepository.ObtenerTodosAsync();
+        return await _pacienteRepository.ObtenerActivosAsync();
     }
-
+    public async Task<IEnumerable<Paciente>> ObtenerInactivosAsync()
+    {
+        return await _pacienteRepository.ObtenerInactivosAsync();
+    }
     public async Task<Paciente?> ObtenerPorIdAsync(int id)
     {
-        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+        var paciente = await _pacienteRepository.ObtenerActivoPorIdAsync(id);
 
         if (paciente is null)
             return null;
@@ -69,6 +72,9 @@ public class PacienteService(
         if (existeDni)
             return ResultadoOperacion<Paciente>.Error("Ya existe un paciente registrado con ese DNI.");
 
+        paciente.Activo = true;
+        paciente.FechaBaja = null;
+
         await _pacienteRepository.CrearAsync(paciente);
 
         return ResultadoOperacion<Paciente>.Ok(paciente);
@@ -91,6 +97,9 @@ public class PacienteService(
         if (pacienteExistente is null)
             return ResultadoOperacion<Paciente>.Error("Paciente no encontrado.");
 
+        if (!pacienteExistente.Activo)
+            return ResultadoOperacion<Paciente>.Error("No se puede modificar un paciente dado de baja.");
+
         var pacienteConMismoDni = await _pacienteRepository.ObtenerPorDniAsync(paciente.Dni);
 
         if (pacienteConMismoDni is not null && pacienteConMismoDni.Id != id)
@@ -108,6 +117,42 @@ public class PacienteService(
         await _pacienteRepository.ActualizarAsync(pacienteExistente);
 
         return ResultadoOperacion<Paciente>.Ok(pacienteExistente);
+    }
+
+    public async Task<ResultadoOperacion<bool>> EliminarAsync(int id)
+    {
+        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+
+        if (paciente is null)
+            return ResultadoOperacion<bool>.Error("Paciente no encontrado.");
+
+        if (!paciente.Activo)
+            return ResultadoOperacion<bool>.Error("El paciente ya se encuentra dado de baja.");
+
+        paciente.Activo = false;
+        paciente.FechaBaja = DateTime.Now;
+
+        await _pacienteRepository.ActualizarAsync(paciente);
+
+        return ResultadoOperacion<bool>.Ok(true);
+    }
+
+    public async Task<ResultadoOperacion<bool>> ReactivarAsync(int id)
+    {
+        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+
+        if (paciente is null)
+            return ResultadoOperacion<bool>.Error("Paciente no encontrado.");
+
+        if (paciente.Activo)
+            return ResultadoOperacion<bool>.Error("El paciente ya se encuentra activo.");
+
+        paciente.Activo = true;
+        paciente.FechaBaja = null;
+
+        await _pacienteRepository.ActualizarAsync(paciente);
+
+        return ResultadoOperacion<bool>.Ok(true);
     }
 
     private bool UsuarioEsMedico()

@@ -9,6 +9,32 @@ public class PacienteRepository(AppDbContext context) : Repository<Paciente>(con
 {
     private readonly AppDbContext _context = context;
 
+    public async Task<IEnumerable<Paciente>> ObtenerActivosAsync()
+    {
+        return await _context.Pacientes
+            .AsNoTracking()
+            .Where(p => p.Activo)
+            .OrderBy(p => p.NombreCompleto)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Paciente>> ObtenerInactivosAsync()
+    {
+        return await _context.Pacientes
+            .AsNoTracking()
+            .Where(p => !p.Activo)
+            .OrderByDescending(p => p.FechaBaja)
+            .ThenBy(p => p.NombreCompleto)
+            .ToListAsync();
+    }
+
+    public async Task<Paciente?> ObtenerActivoPorIdAsync(int id)
+    {
+        return await _context.Pacientes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id && p.Activo);
+    }
+
     public async Task<Paciente?> ObtenerPorDniAsync(string dni)
     {
         return await _context.Pacientes
@@ -24,7 +50,11 @@ public class PacienteRepository(AppDbContext context) : Repository<Paciente>(con
     public async Task<IEnumerable<Paciente>> ObtenerPorMedicoAsync(int medicoId)
     {
         return await _context.Turnos
-            .Where(t => t.MedicoId == medicoId)
+            .AsNoTracking()
+            .Where(t =>
+                t.MedicoId == medicoId &&
+                t.Paciente != null &&
+                t.Paciente.Activo)
             .Select(t => t.Paciente!)
             .Distinct()
             .OrderBy(p => p.NombreCompleto)

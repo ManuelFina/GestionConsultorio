@@ -11,18 +11,24 @@ namespace GestionConsultorio.Api.Controllers;
 [Route("api/[controller]")]
 public class PacientesController(
     IPacienteRepository pacienteRepository,
-    IPacienteService pacienteService,
-    IValidacionEliminacionService validacionEliminacionService) : ControllerBase
+    IPacienteService pacienteService) : ControllerBase
 {
     private readonly IPacienteRepository _pacienteRepository = pacienteRepository;
     private readonly IPacienteService _pacienteService = pacienteService;
-    private readonly IValidacionEliminacionService _validacionEliminacionService = validacionEliminacionService;
 
     [Authorize(Roles = "Administrador,Recepcionista,Medico")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Paciente>>> ObtenerTodos()
     {
         var pacientes = await _pacienteService.ObtenerTodosAsync();
+        return Ok(pacientes);
+    }
+
+    [Authorize(Roles = "Administrador,Recepcionista")]
+    [HttpGet("inactivos")]
+    public async Task<ActionResult<IEnumerable<Paciente>>> ObtenerInactivos()
+    {
+        var pacientes = await _pacienteService.ObtenerInactivosAsync();
         return Ok(pacientes);
     }
 
@@ -44,7 +50,7 @@ public class PacientesController(
     {
         var paciente = await _pacienteRepository.ObtenerPorDniAsync(dni.Trim());
 
-        if (paciente is null)
+        if (paciente is null || !paciente.Activo)
             return NotFound("Paciente no encontrado.");
 
         return Ok(paciente);
@@ -87,17 +93,32 @@ public class PacientesController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        var paciente = await _pacienteRepository.ObtenerPorIdAsync(id);
+        var resultado = await _pacienteService.EliminarAsync(id);
 
-        if (paciente is null)
-            return NotFound("Paciente no encontrado.");
+        if (!resultado.Exitoso)
+        {
+            if (resultado.Mensaje == "Paciente no encontrado.")
+                return NotFound(resultado.Mensaje);
 
-        var validacion = await _validacionEliminacionService.ValidarPacienteAsync(id);
+            return BadRequest(resultado.Mensaje);
+        }
 
-        if (!validacion.PuedeEliminar)
-            return BadRequest(validacion.Mensaje);
+        return NoContent();
+    }
 
-        await _pacienteRepository.EliminarAsync(paciente);
+    [Authorize(Roles = "Administrador,Recepcionista")]
+    [HttpPatch("{id:int}/reactivar")]
+    public async Task<IActionResult> Reactivar(int id)
+    {
+        var resultado = await _pacienteService.ReactivarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            if (resultado.Mensaje == "Paciente no encontrado.")
+                return NotFound(resultado.Mensaje);
+
+            return BadRequest(resultado.Mensaje);
+        }
 
         return NoContent();
     }
