@@ -54,6 +54,14 @@
                 </NavLink>
             }
 
+            @if (PuedeVerRecepcionistas)
+            {
+                <NavLink class="nav-link" href="/recepcionistas">
+                    <span class="nav-link-icon">🧾</span>
+                    <span>Recepcionistas</span>
+                </NavLink>
+            }
+
             @if (PuedeVerMedicos)
             {
                 <NavLink class="nav-link" href="/medicos">
@@ -130,6 +138,9 @@
     private bool PuedeVerPacientes =>
         EsRecepcionista || EsMedico;
 
+    private bool PuedeVerRecepcionistas =>
+        EsAdministrador;
+
     private bool PuedeVerMedicos =>
         EsAdministrador;
 
@@ -144,6 +155,7 @@
 
     private bool PuedeVerGestion =>
         PuedeVerPacientes ||
+        PuedeVerRecepcionistas ||
         PuedeVerMedicos ||
         PuedeVerEspecialidades ||
         PuedeVerConsultorios ||

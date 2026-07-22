@@ -9,6 +9,7 @@ public static class ApiRoutes
     public const string Turnos = "api/turnos";
     public const string HistorialesClinicos = "api/historialesclinicos";
     public const string Auth = "api/auth";
+    public const string Recepcionistas = "api/recepcionistas";
 
     public static string ArchivosHistorialClinico(int historialClinicoId)
     {

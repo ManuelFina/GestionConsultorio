@@ -1,0 +1,274 @@
+﻿@page "/recepcionistas/nuevo"
+@page "/recepcionistas/editar/{RecepcionistaId:int}"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.DTOs.Auth
+@using GestionConsultorio.Shared.DTOs.Recepcionistas
+
+@inject IRecepcionistaService RecepcionistaService
+@inject IAlertService AlertService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>@TituloPagina</h2>
+        <p>@SubtituloPagina</p>
+    </div>
+
+    <button class="btn btn-outline" @onclick="Volver">
+        Volver
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando información de la recepcionista...</p>
+        }
+        else
+        {
+            <EditForm Model="Formulario" OnSubmit="GuardarAsync">
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label">Nombre completo</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Formulario.NombreCompleto"
+                                   placeholder="Ej: Ana Martínez" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Formulario.Email"
+                                   placeholder="Ej: recepcion@email.com" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">@LabelPassword</label>
+                        <InputText type="password"
+                                   class="form-control"
+                                   @bind-Value="Formulario.Password"
+                                   placeholder="@PlaceholderPassword" />
+                    </div>
+                </div>
+
+                @if (EsEdicion)
+                {
+                    <div class="alert alert-info">
+                        Si dejás la contraseña vacía, se mantiene la contraseña actual.
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        Se creará un usuario con rol Recepcionista para acceder al sistema.
+                    </div>
+                }
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" @onclick="Volver">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+                        @(Guardando ? "Guardando..." : TextoBotonGuardar)
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int? RecepcionistaId { get; set; }
+
+    private FormularioRecepcionista Formulario = new();
+
+    private bool Cargando = true;
+    private bool Guardando;
+    private string MensajeError = string.Empty;
+
+    private bool EsEdicion => RecepcionistaId.HasValue;
+
+    private string TituloPagina =>
+        EsEdicion ? "Editar recepcionista" : "Nueva recepcionista";
+
+    private string SubtituloPagina =>
+        EsEdicion
+            ? "Actualizá los datos del usuario de recepción"
+            : "Creá un usuario de acceso para recepción";
+
+    private string TextoBotonGuardar =>
+        EsEdicion ? "Guardar cambios" : "Registrar recepcionista";
+
+    private string LabelPassword =>
+        EsEdicion ? "Nueva contraseña" : "Contraseña";
+
+    private string PlaceholderPassword =>
+        EsEdicion ? "Opcional" : "Mínimo 6 caracteres";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        if (EsEdicion)
+        {
+            var resultado = await RecepcionistaService.ObtenerPorIdAsync(RecepcionistaId!.Value);
+
+            if (!resultado.Exitoso)
+            {
+                MensajeError = resultado.Mensaje;
+                Cargando = false;
+                return;
+            }
+
+            var recepcionista = resultado.Data;
+
+            if (recepcionista is not null)
+            {
+                Formulario.NombreCompleto = recepcionista.NombreCompleto;
+                Formulario.Email = recepcionista.Email;
+            }
+        }
+
+        Cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        Guardando = true;
+        MensajeError = string.Empty;
+
+        if (!ValidarFormulario())
+        {
+            Guardando = false;
+            return;
+        }
+
+        if (EsEdicion)
+        {
+            await ActualizarRecepcionistaAsync();
+        }
+        else
+        {
+            await CrearRecepcionistaAsync();
+        }
+
+        Guardando = false;
+    }
+
+    private bool ValidarFormulario()
+    {
+        if (string.IsNullOrWhiteSpace(Formulario.NombreCompleto))
+        {
+            MensajeError = "Ingresá el nombre completo de la recepcionista.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Formulario.Email))
+        {
+            MensajeError = "Ingresá el email de la recepcionista.";
+            return false;
+        }
+
+        if (!EsEdicion && string.IsNullOrWhiteSpace(Formulario.Password))
+        {
+            MensajeError = "Ingresá una contraseña.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Formulario.Password) && Formulario.Password.Length < 6)
+        {
+            MensajeError = "La contraseña debe tener al menos 6 caracteres.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task CrearRecepcionistaAsync()
+    {
+        var dto = new RegistroUsuarioDto
+        {
+            NombreCompleto = Formulario.NombreCompleto,
+            Email = Formulario.Email,
+            Password = Formulario.Password,
+            Rol = "Recepcionista"
+        };
+
+        var resultado = await RecepcionistaService.CrearAsync(dto);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo registrar",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Recepcionista registrada",
+            "El usuario de recepción se creó correctamente.");
+
+        Navigation.NavigateTo("/recepcionistas");
+    }
+
+    private async Task ActualizarRecepcionistaAsync()
+    {
+        var dto = new ActualizarRecepcionistaDto
+        {
+            NombreCompleto = Formulario.NombreCompleto,
+            Email = Formulario.Email,
+            Password = Formulario.Password
+        };
+
+        var resultado = await RecepcionistaService.ActualizarAsync(
+            RecepcionistaId!.Value,
+            dto);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo actualizar",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Recepcionista actualizada",
+            "Los cambios se guardaron correctamente.");
+
+        Navigation.NavigateTo("/recepcionistas");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/recepcionistas");
+    }
+
+    private class FormularioRecepcionista
+    {
+        public string NombreCompleto { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+    }
+}

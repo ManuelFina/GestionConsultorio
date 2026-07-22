@@ -1,0 +1,176 @@
+﻿@page "/recepcionistas"
+
+@using GestionConsultorio.Mobile.Services.Interfaces
+@using GestionConsultorio.Shared.DTOs.Recepcionistas
+
+@inject IRecepcionistaService RecepcionistaService
+@inject IAlertService AlertService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="page-title">
+        <h2>Recepcionistas</h2>
+        <p>Gestión de usuarios con rol de recepción</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="IrNuevaRecepcionista">
+        + Nueva recepcionista
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(MensajeError))
+{
+    <div class="alert alert-error">
+        @MensajeError
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="toolbar">
+            <div class="search-box">
+                <input class="form-control"
+                       placeholder="Buscar por nombre o email..."
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-outline" @onclick="CargarRecepcionistasAsync">
+                Actualizar
+            </button>
+        </div>
+
+        @if (Cargando)
+        {
+            <p class="empty-text">Cargando recepcionistas...</p>
+        }
+        else if (!RecepcionistasFiltradas.Any())
+        {
+            <p class="empty-text">No se encontraron recepcionistas.</p>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre completo</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var recepcionista in RecepcionistasFiltradas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@recepcionista.NombreCompleto</strong>
+                                </td>
+
+                                <td>@recepcionista.Email</td>
+
+                                <td>
+                                    <span class="badge badge-info">
+                                        @recepcionista.Rol
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="actions">
+                                        <button class="action-btn" @onclick="@(() => EditarRecepcionista(recepcionista.Id))">
+                                            Editar
+                                        </button>
+
+                                        <button class="action-btn action-danger" @onclick="@(() => EliminarRecepcionistaAsync(recepcionista.Id))">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool Cargando = true;
+    private string MensajeError = string.Empty;
+    private string TextoBusqueda = string.Empty;
+
+    private List<RecepcionistaDto> Recepcionistas = new();
+
+    private IEnumerable<RecepcionistaDto> RecepcionistasFiltradas =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Recepcionistas
+            : Recepcionistas.Where(r =>
+                (r.NombreCompleto?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.Email?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRecepcionistasAsync();
+    }
+
+    private async Task CargarRecepcionistasAsync()
+    {
+        Cargando = true;
+        MensajeError = string.Empty;
+
+        var resultado = await RecepcionistaService.ObtenerTodosAsync();
+
+        if (!resultado.Exitoso)
+        {
+            MensajeError = resultado.Mensaje;
+            Cargando = false;
+            return;
+        }
+
+        Recepcionistas = resultado.Data ?? new List<RecepcionistaDto>();
+        Cargando = false;
+    }
+
+    private void IrNuevaRecepcionista()
+    {
+        Navigation.NavigateTo("/recepcionistas/nuevo");
+    }
+
+    private void EditarRecepcionista(int id)
+    {
+        Navigation.NavigateTo($"/recepcionistas/editar/{id}");
+    }
+
+    private async Task EliminarRecepcionistaAsync(int id)
+    {
+        MensajeError = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Eliminar recepcionista",
+            "¿Seguro que querés eliminar esta recepcionista?",
+            "Sí, eliminar");
+
+        if (!confirmado)
+            return;
+
+        var resultado = await RecepcionistaService.EliminarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo eliminar",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Recepcionista eliminada",
+            "La recepcionista se eliminó correctamente.");
+
+        await CargarRecepcionistasAsync();
+    }
+}
