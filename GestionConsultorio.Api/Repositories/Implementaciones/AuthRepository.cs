@@ -26,4 +26,31 @@ public class AuthRepository(AppDbContext context) : IAuthRepository
         await _context.Usuarios.AddAsync(usuario);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<Usuario>> ObtenerRecepcionistasAsync()
+    {
+        return await _context.Usuarios
+            .AsNoTracking()
+            .Where(u => u.Rol == "Recepcionista")
+            .OrderBy(u => u.NombreCompleto)
+            .ToListAsync();
+    }
+
+    public async Task<Usuario?> ObtenerRecepcionistaPorIdAsync(int id)
+    {
+        return await _context.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == id && u.Rol == "Recepcionista");
+    }
+
+    public async Task ActualizarUsuarioAsync(Usuario usuario)
+    {
+        _context.Usuarios.Update(usuario);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task EliminarUsuarioAsync(Usuario usuario)
+    {
+        _context.Usuarios.Remove(usuario);
+        await _context.SaveChangesAsync();
+    }
 }
