@@ -18,6 +18,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Paciente>()
+            .Property(p => p.Activo)
+            .HasDefaultValue(true);
+
         modelBuilder.Entity<HistorialClinico>()
             .HasOne(h => h.Paciente)
             .WithMany()

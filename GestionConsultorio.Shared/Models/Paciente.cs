@@ -14,4 +14,7 @@ public class Paciente
 
     public string ObraSocial { get; set; } = string.Empty;
     public string NumeroAfiliado { get; set; } = string.Empty;
+
+    public bool Activo { get; set; } = true;
+    public DateTime? FechaBaja { get; set; }
 }
