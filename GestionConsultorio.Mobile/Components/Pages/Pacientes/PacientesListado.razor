@@ -10,11 +10,11 @@
 
 <div class="page-header">
     <div class="page-title">
-        <h2>Pacientes</h2>
+        <h2>@TituloPagina</h2>
         <p>@SubtituloPagina</p>
     </div>
 
-    @if (PuedeCrearPacientes)
+    @if (PuedeCrearPacientes && !MostrandoInactivos)
     {
         <button class="btn btn-primary" @onclick="IrNuevoPaciente">
             + Nuevo paciente
@@ -39,6 +39,17 @@
                        @bind:event="oninput" />
             </div>
 
+            @if (PuedeModificarPacientes)
+            {
+                <button class="@ClaseBotonActivos" @onclick="MostrarPacientesActivosAsync">
+                    Activos
+                </button>
+
+                <button class="@ClaseBotonInactivos" @onclick="MostrarPacientesInactivosAsync">
+                    Dados de baja
+                </button>
+            }
+
             <button class="btn btn-outline" @onclick="CargarPacientesAsync">
                 Actualizar
             </button>
@@ -46,7 +57,7 @@
 
         @if (Cargando)
         {
-            <p class="empty-text">Cargando pacientes...</p>
+            <p class="empty-text">@TextoCargando</p>
         }
         else if (!PacientesFiltrados.Any())
         {
@@ -63,6 +74,12 @@
                             <th>Contacto</th>
                             <th>Obra social</th>
                             <th>Fecha nacimiento</th>
+
+                            @if (MostrandoInactivos)
+                            {
+                                <th>Fecha baja</th>
+                            }
+
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -74,6 +91,11 @@
                                 <td>
                                     <strong>@paciente.NombreCompleto</strong>
                                     <div class="table-subtext">@MostrarDato(paciente.Direccion)</div>
+
+                                    @if (MostrandoInactivos)
+                                    {
+                                        <span class="badge badge-danger">Dado de baja</span>
+                                    }
                                 </td>
 
                                 <td>@paciente.Dni</td>
@@ -96,21 +118,35 @@
 
                                 <td>@paciente.FechaNacimiento.ToString("dd/MM/yyyy")</td>
 
+                                @if (MostrandoInactivos)
+                                {
+                                    <td>@MostrarFechaBaja(paciente.FechaBaja)</td>
+                                }
+
                                 <td>
                                     <div class="actions">
-                                        <button class="action-btn" @onclick="@(() => VerDetalle(paciente.Id))">
-                                            Ver
-                                        </button>
-
-                                        @if (PuedeModificarPacientes)
+                                        @if (MostrandoInactivos)
                                         {
-                                            <button class="action-btn" @onclick="@(() => EditarPaciente(paciente.Id))">
-                                                Editar
+                                            <button class="action-btn" @onclick="@(() => ReactivarPacienteAsync(paciente.Id))">
+                                                Reactivar
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="action-btn" @onclick="@(() => VerDetalle(paciente.Id))">
+                                                Ver
                                             </button>
 
-                                            <button class="action-btn action-danger" @onclick="@(() => EliminarPacienteAsync(paciente.Id))">
-                                                Eliminar
-                                            </button>
+                                            @if (PuedeModificarPacientes)
+                                            {
+                                                <button class="action-btn" @onclick="@(() => EditarPaciente(paciente.Id))">
+                                                    Editar
+                                                </button>
+
+                                                <button class="action-btn action-danger" @onclick="@(() => DarDeBajaPacienteAsync(paciente.Id))">
+                                                    Dar de baja
+                                                </button>
+                                            }
                                         }
                                     </div>
                                 </td>
@@ -125,6 +161,7 @@
 
 @code {
     private bool Cargando = true;
+    private bool MostrandoInactivos;
     private string MensajeError = string.Empty;
     private string TextoBusqueda = string.Empty;
     private string RolUsuario = string.Empty;
@@ -143,15 +180,47 @@
     private bool PuedeModificarPacientes =>
         EsRecepcionista;
 
-    private string SubtituloPagina =>
-        EsMedico
-            ? "Pacientes asociados a tus turnos y atenciones"
-            : "Gestión de pacientes registrados en el consultorio";
+    private string TituloPagina =>
+        MostrandoInactivos ? "Pacientes dados de baja" : "Pacientes";
 
-    private string TextoSinPacientes =>
-        EsMedico
-            ? "No tenés pacientes asociados por el momento."
-            : "No se encontraron pacientes.";
+    private string SubtituloPagina
+    {
+        get
+        {
+            if (MostrandoInactivos)
+                return "Pacientes inactivos que pueden ser reactivados";
+
+            if (EsMedico)
+                return "Pacientes asociados a tus turnos y atenciones";
+
+            return "Gestión de pacientes registrados en el consultorio";
+        }
+    }
+
+    private string TextoCargando =>
+        MostrandoInactivos
+            ? "Cargando pacientes dados de baja..."
+            : "Cargando pacientes...";
+
+    private string TextoSinPacientes
+    {
+        get
+        {
+            if (MostrandoInactivos)
+                return "No hay pacientes dados de baja.";
+
+            if (EsMedico)
+                return "No tenés pacientes asociados por el momento.";
+
+            return "No se encontraron pacientes.";
+        }
+    }
+
+    private string ClaseBotonActivos =>
+        MostrandoInactivos ? "btn btn-outline" : "btn btn-primary";
+
+    private string ClaseBotonInactivos =>
+        MostrandoInactivos ? "btn btn-primary" : "btn btn-outline";
 
     private IEnumerable<Paciente> PacientesFiltrados =>
         string.IsNullOrWhiteSpace(TextoBusqueda)
@@ -174,7 +243,9 @@
         Cargando = true;
         MensajeError = string.Empty;
 
-        var resultado = await PacienteService.ObtenerTodosAsync();
+        var resultado = MostrandoInactivos && PuedeModificarPacientes
+            ? await PacienteService.ObtenerInactivosAsync()
+            : await PacienteService.ObtenerTodosAsync();
 
         if (!resultado.Exitoso)
         {
@@ -185,6 +256,20 @@
 
         Pacientes = resultado.Data ?? new List<Paciente>();
         Cargando = false;
+    }
+
+    private async Task MostrarPacientesActivosAsync()
+    {
+        MostrandoInactivos = false;
+        TextoBusqueda = string.Empty;
+        await CargarPacientesAsync();
+    }
+
+    private async Task MostrarPacientesInactivosAsync()
+    {
+        MostrandoInactivos = true;
+        TextoBusqueda = string.Empty;
+        await CargarPacientesAsync();
     }
 
     private void IrNuevoPaciente()
@@ -202,34 +287,62 @@
         Navigation.NavigateTo($"/pacientes/editar/{id}");
     }
 
-    private async Task EliminarPacienteAsync(int id)
+    private async Task DarDeBajaPacienteAsync(int id)
     {
         MensajeError = string.Empty;
 
         var confirmado = await AlertService.ConfirmAsync(
-            "Eliminar paciente",
-            "¿Seguro que querés eliminar este paciente?",
-            "Sí, eliminar");
+            "Dar de baja paciente",
+            "¿Seguro que querés dar de baja este paciente? No se eliminarán sus turnos ni su historial clínico.",
+            "Sí, dar de baja");
 
         if (!confirmado)
-        {
             return;
-        }
 
         var resultado = await PacienteService.EliminarAsync(id);
 
         if (!resultado.Exitoso)
         {
             await AlertService.ErrorAsync(
-                "No se pudo eliminar",
+                "No se pudo dar de baja",
                 resultado.Mensaje);
 
             return;
         }
 
         await AlertService.SuccessAsync(
-            "Paciente eliminado",
-            "El paciente se eliminó correctamente.");
+            "Paciente dado de baja",
+            "El paciente fue dado de baja correctamente.");
+
+        await CargarPacientesAsync();
+    }
+
+    private async Task ReactivarPacienteAsync(int id)
+    {
+        MensajeError = string.Empty;
+
+        var confirmado = await AlertService.ConfirmAsync(
+            "Reactivar paciente",
+            "¿Seguro que querés reactivar este paciente? Volverá a aparecer en el listado principal.",
+            "Sí, reactivar");
+
+        if (!confirmado)
+            return;
+
+        var resultado = await PacienteService.ReactivarAsync(id);
+
+        if (!resultado.Exitoso)
+        {
+            await AlertService.ErrorAsync(
+                "No se pudo reactivar",
+                resultado.Mensaje);
+
+            return;
+        }
+
+        await AlertService.SuccessAsync(
+            "Paciente reactivado",
+            "El paciente volvió a estar activo correctamente.");
 
         await CargarPacientesAsync();
     }
@@ -237,5 +350,12 @@
     private static string MostrarDato(string? valor)
     {
         return string.IsNullOrWhiteSpace(valor) ? "-" : valor;
+    }
+
+    private static string MostrarFechaBaja(DateTime? fechaBaja)
+    {
+        return fechaBaja.HasValue
+            ? fechaBaja.Value.ToString("dd/MM/yyyy")
+            : "-";
     }
 }

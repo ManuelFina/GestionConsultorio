@@ -29,6 +29,32 @@ public class PacienteService(HttpClient httpClient) : IPacienteService
         }
     }
 
+    public async Task<ApiResponse<List<Paciente>>> ObtenerInactivosAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{ApiRoutes.Pacientes}/inactivos");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var mensaje = await ApiErrorHelper.ObtenerMensajeErrorAsync(response);
+                return ApiResponse<List<Paciente>>.Error(mensaje);
+            }
+
+            var pacientes = await response.Content.ReadFromJsonAsync<List<Paciente>>();
+
+            return ApiResponse<List<Paciente>>.Ok(pacientes ?? new List<Paciente>());
+        }
+        catch (HttpRequestException)
+        {
+            return ApiResponse<List<Paciente>>.Error("No se pudo conectar con el servidor.");
+        }
+        catch (Exception)
+        {
+            return ApiResponse<List<Paciente>>.Error("Ocurrió un error inesperado al obtener los pacientes dados de baja.");
+        }
+    }
+
     public async Task<ApiResponse<Paciente>> ObtenerPorIdAsync(int id)
     {
         try
@@ -161,6 +187,30 @@ public class PacienteService(HttpClient httpClient) : IPacienteService
         catch (Exception)
         {
             return ApiResponse<bool>.Error("Ocurrió un error inesperado al eliminar el paciente.");
+        }
+    }
+
+    public async Task<ApiResponse<bool>> ReactivarAsync(int id)
+    {
+        try
+        {
+            var response = await _httpClient.PatchAsync($"{ApiRoutes.Pacientes}/{id}/reactivar", null);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var mensaje = await ApiErrorHelper.ObtenerMensajeErrorAsync(response);
+                return ApiResponse<bool>.Error(mensaje);
+            }
+
+            return ApiResponse<bool>.Ok(true);
+        }
+        catch (HttpRequestException)
+        {
+            return ApiResponse<bool>.Error("No se pudo conectar con el servidor.");
+        }
+        catch (Exception)
+        {
+            return ApiResponse<bool>.Error("Ocurrió un error inesperado al reactivar el paciente.");
         }
     }
 
